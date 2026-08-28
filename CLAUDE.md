@@ -69,10 +69,10 @@ See [@docs/context/user_stories.md](docs/context/user_stories.md)
 ## Rules
 
 - [Code conventions](@docs/rules/coding-conventions.md)
-- (Security)[@docs/rules/security.md]
-- (Error Handling)[@docs/rules/error-handling.md]
-- (ChangeLog)[@docs/rules/error-handling.md] **Must add after each change in code**
+- [Security](@docs/rules/security.md)
+- [Error Handling](@docs/rules/error-handling.md)
+- [ChangeLog](@docs/rules/error-handling.md) **Must add after each change in code**
 
 ## Design System
 
-Use for consistent UI across whole project frontend. See (Design File Here)[@docs/context/design.md]
+Use for consistent UI across whole project frontend. See [Design File Here](@docs/context/design.md)
