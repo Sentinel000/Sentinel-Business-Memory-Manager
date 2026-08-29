@@ -14,7 +14,9 @@ from app.database import SessionLocal
 from app.models import Company, Employee, User, UserRole
 
 DEMO_COMPANY = "Northwind SaaS"
-FOUNDER_EMAIL = "sarah@northwind.test"
+# .example is reserved for documentation (RFC 2606) and passes email-validator.
+# A .test address does NOT - it is rejected before the password is ever checked.
+FOUNDER_EMAIL = "sarah@northwind.example"
 FOUNDER_PASSWORD = "sentinel-demo-2026"  # noqa: S105 - local seed data only
 
 PERSONA = {

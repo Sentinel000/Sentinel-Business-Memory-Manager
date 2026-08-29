@@ -18,7 +18,9 @@ from app.models.enums import UserRole
 from app.models.user import User
 from app.repositories.company import CompanyRepository
 from app.repositories.employee import EmployeeRepository
+from app.repositories.task import TaskRepository
 from app.repositories.user import UserRepository, get_user_by_id
+from app.services.task_service import TaskService
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
 
@@ -94,6 +96,16 @@ def get_company_repository(db: DbSession) -> CompanyRepository:
     return CompanyRepository(db)
 
 
+def get_task_repository(db: DbSession, company_id: CompanyId) -> TaskRepository:
+    return TaskRepository(db, company_id)
+
+
+def get_task_service(db: DbSession, company_id: CompanyId) -> TaskService:
+    return TaskService(db, company_id)
+
+
 UserRepo = Annotated[UserRepository, Depends(get_user_repository)]
 EmployeeRepo = Annotated[EmployeeRepository, Depends(get_employee_repository)]
 CompanyRepo = Annotated[CompanyRepository, Depends(get_company_repository)]
+TaskRepo = Annotated[TaskRepository, Depends(get_task_repository)]
+TaskSvc = Annotated[TaskService, Depends(get_task_service)]

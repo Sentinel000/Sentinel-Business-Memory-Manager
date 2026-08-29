@@ -1,4 +1,4 @@
-"""Verification for step 1: schema rules, tenant isolation, and auth.
+"""Verification: schema rules, tenant isolation, auth, and task endpoints.
 
 Not a test suite — a runnable check that the guarantees this layer claims are real.
 Creates two throwaway companies, asserts against them, and deletes them.
@@ -8,7 +8,7 @@ Creates two throwaway companies, asserts against them, and deletes them.
 
 import sys
 import uuid
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
 from sqlalchemy.exc import IntegrityError
@@ -16,7 +16,16 @@ from sqlalchemy.exc import IntegrityError
 from app.core.security import create_access_token, hash_password
 from app.database import SessionLocal
 from app.main import app
-from app.models import Company, Employee, Task, TaskStatus, User, UserRole
+from app.models import (
+    Approval,
+    ApprovalState,
+    Company,
+    Employee,
+    Task,
+    TaskStatus,
+    User,
+    UserRole,
+)
 from app.repositories.employee import EmployeeRepository
 from app.repositories.base import TenantScopedRepository
 
@@ -70,23 +79,26 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
             f"got {task_a.status}",
         )
 
-        # Rule 3: idempotency key blocks a duplicate within a tenant...
-        db.add(
-            Task(company_id=company_a.id, title="Q4 forecast", idempotency_key=f"src-1:{suffix}")
-        )
+        db.commit()
+
+        # Rule 3: idempotency key blocks a duplicate within a tenant.
+        # Inside a savepoint: the IntegrityError we are provoking would otherwise
+        # roll the whole transaction back, taking the setup rows above with it.
         duplicate_blocked = False
         try:
-            db.flush()
+            with db.begin_nested():
+                db.add(
+                    Task(
+                        company_id=company_a.id,
+                        title="Q4 forecast",
+                        idempotency_key=f"src-1:{suffix}",
+                    )
+                )
         except IntegrityError:
             duplicate_blocked = True
-            db.rollback()
         check("duplicate (company_id, idempotency_key) is rejected", duplicate_blocked)
 
         # ...but the same key under another tenant is a different task.
-        db.add_all([company_a, company_b])
-        db.merge(company_a)
-        db.merge(company_b)
-        emp_b = db.merge(emp_b)
         task_b = Task(
             company_id=company_b.id,
             title="Q4 forecast",
@@ -144,17 +156,26 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
         password = "verify-pw-123"  # noqa: S105 - throwaway
         user_a = User(
             company_id=company_a.id,
-            email=f"a-{suffix}@verify.test",
+            email=f"a-{suffix}@verify.example",
             password_hash=hash_password(password),
             role=UserRole.FOUNDER,
         )
+        # company B's founder, so cross-tenant checks hit the founder-only routes
+        # with a legitimate token and prove isolation rather than just a role check.
         user_b = User(
             company_id=company_b.id,
-            email=f"b-{suffix}@verify.test",
+            email=f"b-{suffix}@verify.example",
+            password_hash=hash_password(password),
+            role=UserRole.FOUNDER,
+        )
+        # An employee of company B, for the role check.
+        user_b_emp = User(
+            company_id=company_b.id,
+            email=f"b-emp-{suffix}@verify.example",
             password_hash=hash_password(password),
             role=UserRole.EMPLOYEE,
         )
-        db.add_all([user_a, user_b])
+        db.add_all([user_a, user_b, user_b_emp])
         db.commit()
 
         client = TestClient(app, raise_server_exceptions=False)
@@ -187,7 +208,7 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
 
         r_unknown = client.post(
             "/api/v1/auth/login",
-            json={"email": f"nobody-{suffix}@verify.test", "password": password},
+            json={"email": f"nobody-{suffix}@verify.example", "password": password},
         )
         check(
             "unknown email and wrong password are indistinguishable",
@@ -208,7 +229,7 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
 
         # A signed token for company B must see only company B.
         token_b = create_access_token(
-            user_id=user_b.id, company_id=company_b.id, role=UserRole.EMPLOYEE
+            user_id=user_b.id, company_id=company_b.id, role=UserRole.FOUNDER
         )
         r = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token_b}"})
         check(
@@ -241,6 +262,159 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
         )
         r = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {expired}"})
         check("an expired token is rejected", r.status_code == 401, str(r.status_code))
+
+        print("\nTask endpoints")
+
+        auth_a = {"Authorization": f"Bearer {token}"}
+        auth_b = {"Authorization": f"Bearer {token_b}"}
+        past = (datetime.now(UTC) - timedelta(days=4)).isoformat()
+
+        r = client.post(
+            "/api/v1/tasks",
+            headers=auth_a,
+            json={
+                "title": "Q4 forecast from Mark",
+                "description": "Numbers for the board deck.",
+                "owner_employee_id": str(emp_a.id),
+                "deadline": past,
+            },
+        )
+        check("founder can create a task", r.status_code == 201, str(r.status_code))
+        created = r.json() if r.status_code == 201 else {}
+        task_id = created.get("id", "")
+
+        # The founder is the approval step, so a hand-typed task is approved...
+        check(
+            "a founder-created task is approved, not queued",
+            created.get("status") == "approved",
+            str(created.get("status")),
+        )
+        # ...but the decision is still recorded, with an author.
+        approval = (
+            db.query(Approval).filter(Approval.task_id == uuid.UUID(task_id)).one_or_none()
+            if task_id
+            else None
+        )
+        check(
+            "the promotion writes a real approval row naming the decider",
+            approval is not None
+            and approval.state is ApprovalState.APPROVED
+            and approval.decided_by_user_id == user_a.id,
+        )
+        check(
+            "the owner name is resolved on the response",
+            created.get("owner_name") == "Alice A",
+            str(created.get("owner_name")),
+        )
+        check("days_late is computed from the deadline", created.get("days_late") == 4)
+
+        # The security hole this endpoint actually has.
+        r = client.post(
+            "/api/v1/tasks",
+            headers=auth_a,
+            json={"title": "cross-tenant", "owner_employee_id": str(emp_b.id)},
+        )
+        check(
+            "an owner from another company is rejected",
+            r.status_code == 400,
+            str(r.status_code),
+        )
+
+        # Idempotency: a double-clicked Create button.
+        key = f"verify-idem:{suffix}"
+        first = client.post(
+            "/api/v1/tasks", headers=auth_a | {"Idempotency-Key": key}, json={"title": "dupe"}
+        )
+        second = client.post(
+            "/api/v1/tasks", headers=auth_a | {"Idempotency-Key": key}, json={"title": "dupe"}
+        )
+        check(
+            "the same Idempotency-Key returns the original task, not a duplicate",
+            first.status_code == 201
+            and second.status_code == 200
+            and first.json()["id"] == second.json()["id"],
+        )
+
+        r = client.get("/api/v1/tasks", headers=auth_a)
+        listed = r.json()
+        check("list returns the tenant's tasks", r.status_code == 200 and listed["total"] >= 2)
+        check(
+            "list returns summaries only — no description or source_quote",
+            listed["items"] and "description" not in listed["items"][0],
+        )
+
+        r = client.get("/api/v1/tasks", headers=auth_b)
+        b_ids = {i["id"] for i in r.json()["items"]}
+        check("company B's list contains none of company A's tasks", task_id not in b_ids)
+
+        r = client.get(f"/api/v1/tasks/{task_id}", headers=auth_b)
+        check(
+            "reading another company's task returns 404, not 403",
+            r.status_code == 404,
+            str(r.status_code),
+        )
+
+        r = client.get(f"/api/v1/tasks/{task_id}", headers=auth_a)
+        check(
+            "detail includes the fields the summary omits",
+            r.status_code == 200 and "description" in r.json() and "status_updates" in r.json(),
+        )
+
+        r = client.patch(
+            f"/api/v1/tasks/{task_id}", headers=auth_a, json={"title": "Q4 forecast (revised)"}
+        )
+        check(
+            "patch changes only what was sent",
+            r.status_code == 200
+            and r.json()["title"] == "Q4 forecast (revised)"
+            and r.json()["description"] == "Numbers for the board deck.",
+        )
+
+        r = client.post(
+            f"/api/v1/tasks/{task_id}/status",
+            headers=auth_a,
+            json={"status": "blocked", "note": "waiting on the Stripe export"},
+        )
+        check("status change moves the task", r.status_code == 200 and r.json()["status"] == "blocked")
+        check(
+            "and appends to the timeline with its note",
+            r.json()["status_updates"]
+            and r.json()["status_updates"][-1]["note"] == "waiting on the Stripe export",
+        )
+
+        r = client.get("/api/v1/tasks", headers=auth_a, params={"overdue": "true"})
+        overdue_ids = {i["id"] for i in r.json()["items"]}
+        check("overdue filter finds the past-deadline task", task_id in overdue_ids)
+
+        client.post(f"/api/v1/tasks/{task_id}/status", headers=auth_a, json={"status": "done"})
+        r = client.get("/api/v1/tasks", headers=auth_a, params={"overdue": "true"})
+        check(
+            "a completed task is no longer overdue",
+            task_id not in {i["id"] for i in r.json()["items"]},
+        )
+
+        r = client.delete(f"/api/v1/tasks/{task_id}", headers=auth_b)
+        check("another company cannot delete the task", r.status_code == 404, str(r.status_code))
+
+        r = client.delete(f"/api/v1/tasks/{task_id}", headers=auth_a)
+        check("the owning company can delete it", r.status_code == 204, str(r.status_code))
+        check(
+            "and it is gone",
+            client.get(f"/api/v1/tasks/{task_id}", headers=auth_a).status_code == 404,
+        )
+
+        # Employees have no dashboard in v1 — the routes are founder-only.
+        employee_token = create_access_token(
+            user_id=user_b_emp.id, company_id=company_b.id, role=UserRole.EMPLOYEE
+        )
+        r = client.post(
+            "/api/v1/tasks",
+            headers={"Authorization": f"Bearer {employee_token}"},
+            json={"title": "should not work"},
+        )
+        check("an employee-role token cannot create a task", r.status_code == 403, str(r.status_code))
+
+        print("\nAuth (continued)")
 
         user_a.is_active = False
         db.commit()
