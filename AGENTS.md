@@ -69,9 +69,10 @@ See [@docs/context/user_stories.md](docs/context/user_stories.md)
 ## Rules
 
 - [Code conventions](@docs/rules/coding-conventions.md)
-- (Security)[@docs/rules/security.md]
-- (Error Handling)[@docs/rules/error-handling.md]
-- (ChangeLog)[@docs/rules/error-handling.md] **Must add after each change in code**
+- [Security](@docs/rules/security.md)
+- [Error Handling](@docs/rules/error-handling.md)
+- [ChangeLog][@docs/rules/error-handling.md] **Must add after each change in code**
+- [Features](@docs/rules/feature-rules.md) **Keep this always in mind**
 
 ## Design System
 
