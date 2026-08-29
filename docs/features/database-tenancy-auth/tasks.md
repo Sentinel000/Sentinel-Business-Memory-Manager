@@ -1,0 +1,37 @@
+# Tasks: Database, Tenancy & Auth
+
+- [x] Add `.gitignore` covering `.env`, venvs, and build output
+- [x] Pin backend dependencies in `requirements.txt`
+- [x] Document every environment variable in `backend/.env.example`
+- [x] Write `app/config.py` with Pydantic Settings and Neon URL normalisation
+- [x] Write `app/database.py` with the engine, session factory, and `get_db`
+- [x] Verify the Neon connection before writing any models
+- [x] Write `app/models/base.py` with `Base`, `UUIDPrimaryKeyMixin`, `TimestampMixin`, `TenantMixin`
+- [x] Write `app/models/enums.py` with the four enums and the `pg_enum` helper
+- [x] Write the `Company` model
+- [x] Write the `Employee` model with the self-referential manager link
+- [x] Write the `User` model with the nullable employee link
+- [x] Write the `Task` model with the `pending_approval` server default and idempotency constraint
+- [x] Write the `StatusUpdate` model
+- [x] Write the `Approval` model
+- [x] Write the `AuditLog` model
+- [x] Export every model from `app/models/__init__.py`
+- [x] Initialise Alembic and wire `env.py` to `app.config`
+- [x] Autogenerate the initial migration
+- [x] Hand-fix the migration to create and drop enum types explicitly
+- [x] Verify the `upgrade → downgrade → upgrade` cycle against Neon
+- [x] Write `app/repositories/base.py` with `TenantScopedRepository`
+- [x] Write the user, employee, and company repositories
+- [x] Write `app/core/security.py` for password hashing and JWT issue/verify
+- [x] Write `app/exceptions.py` with domain exceptions and registered handlers
+- [x] Write `app/dependencies.py` with `get_current_user`, `require_founder`, and scoped repositories
+- [x] Write `app/schemas/auth.py`
+- [x] Write `app/api/v1/auth.py` with login and me
+- [x] Write `app/api/router.py` and `app/middleware.py`
+- [x] Write `app/main.py` mounting the router, handlers, and CORS
+- [x] Write `scripts/seed.py` for the demo tenant
+- [ ] Fix the savepoint bug in `scripts/verify.py`
+- [ ] Run the full verification suite green
+- [ ] Manually smoke test login and `/auth/me` via `/docs`
+- [ ] Add the `CHANGELOG.md` entry
+- [ ] Commit the branch

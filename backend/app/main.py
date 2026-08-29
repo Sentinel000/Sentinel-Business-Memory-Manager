@@ -1,0 +1,42 @@
+"""FastAPI application entry point."""
+
+import logging
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.api.router import api_router
+from app.config import settings
+from app.exceptions import register_exception_handlers
+from app.middleware import RequestContextMiddleware
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
+)
+
+app = FastAPI(
+    title="Sentinel API",
+    description="Operational layer for a business: captures decisions, tracks who owes what, chases until done.",
+    version="0.1.0",
+    docs_url=None if settings.is_production else "/docs",
+    redoc_url=None,
+)
+
+app.add_middleware(RequestContextMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origin_list,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+register_exception_handlers(app)
+app.include_router(api_router)
+
+
+@app.get("/health", tags=["health"])
+def health() -> dict[str, str]:
+    """Liveness probe. Does not touch the database."""
+    return {"status": "ok", "environment": settings.environment}
