@@ -17,9 +17,13 @@ from app.exceptions import ForbiddenError, InactiveUserError, NotAuthenticatedEr
 from app.models.enums import UserRole
 from app.models.user import User
 from app.repositories.company import CompanyRepository
+from app.repositories.approval import ApprovalRepository
 from app.repositories.employee import EmployeeRepository
 from app.repositories.task import TaskRepository
 from app.repositories.user import UserRepository, get_user_by_id
+from app.services.approval_service import ApprovalService
+from app.services.employee_service import EmployeeService
+from app.services.onboarding_service import OnboardingService
 from app.services.task_service import TaskService
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
@@ -104,8 +108,28 @@ def get_task_service(db: DbSession, company_id: CompanyId) -> TaskService:
     return TaskService(db, company_id)
 
 
+def get_approval_repository(db: DbSession, company_id: CompanyId) -> ApprovalRepository:
+    return ApprovalRepository(db, company_id)
+
+
+def get_employee_service(db: DbSession, company_id: CompanyId) -> EmployeeService:
+    return EmployeeService(db, company_id)
+
+
+def get_approval_service(db: DbSession, company_id: CompanyId) -> ApprovalService:
+    return ApprovalService(db, company_id)
+
+
+def get_onboarding_service(db: DbSession, company_id: CompanyId) -> OnboardingService:
+    return OnboardingService(db, company_id)
+
+
 UserRepo = Annotated[UserRepository, Depends(get_user_repository)]
 EmployeeRepo = Annotated[EmployeeRepository, Depends(get_employee_repository)]
 CompanyRepo = Annotated[CompanyRepository, Depends(get_company_repository)]
 TaskRepo = Annotated[TaskRepository, Depends(get_task_repository)]
 TaskSvc = Annotated[TaskService, Depends(get_task_service)]
+ApprovalRepo = Annotated[ApprovalRepository, Depends(get_approval_repository)]
+EmployeeSvc = Annotated[EmployeeService, Depends(get_employee_service)]
+ApprovalSvc = Annotated[ApprovalService, Depends(get_approval_service)]
+OnboardingSvc = Annotated[OnboardingService, Depends(get_onboarding_service)]

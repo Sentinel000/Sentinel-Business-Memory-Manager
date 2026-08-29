@@ -12,40 +12,22 @@ from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
-from app.exceptions import NotFoundError, ValidationError
+from app.exceptions import NotFoundError
 from app.models.approval import Approval
-from app.models.employee import Employee
-from app.models.enums import ApprovalState, ReportedVia, TaskStatus
+from app.models.enums import ApprovalState, TaskStatus
 from app.models.task import Task
 from app.models.user import User
-from app.repositories.employee import EmployeeRepository
 from app.repositories.task import TaskRepository
 from app.schemas.task import StatusUpdateCreate, TaskCreate, TaskUpdate
+from app.services.base import TenantService
 
 
-class TaskService:
+class TaskService(TenantService):
     def __init__(self, db: Session, company_id: uuid.UUID) -> None:
-        self.db = db
-        self.company_id = company_id
+        super().__init__(db, company_id)
         self.tasks = TaskRepository(db, company_id)
-        self.employees = EmployeeRepository(db, company_id)
 
     # --- helpers ----------------------------------------------------------------
-
-    def _require_own_employee(self, employee_id: uuid.UUID | None) -> Employee | None:
-        """Reject an employee id belonging to another company.
-
-        This is the real hole in this endpoint. owner_employee_id arrives as a UUID in
-        a request body, and the tasks FK only checks the employee *exists* — not that
-        it is ours. The employee repository is tenant-scoped, so a foreign id comes
-        back None.
-        """
-        if employee_id is None:
-            return None
-        employee = self.employees.get(employee_id)
-        if employee is None:
-            raise ValidationError("That employee does not exist in this company.")
-        return employee
 
     def get_or_404(self, task_id: uuid.UUID) -> Task:
         """404, not 403, for another company's task.
@@ -74,7 +56,7 @@ class TaskService:
         writes through this service in step 5 it will skip the promotion, and its
         tasks will fall to that default and wait.
         """
-        self._require_own_employee(payload.owner_employee_id)
+        self.require_own_employee(payload.owner_employee_id, field="employee")
 
         key = idempotency_key or f"manual:{uuid.uuid4()}"
         existing = self.tasks.find_by_idempotency_key(key)
@@ -104,12 +86,72 @@ class TaskService:
         self.db.flush()
         return task, True
 
+    def create_pending(
+        self,
+        *,
+        title: str,
+        idempotency_key: str,
+        source_quote: str,
+        source_ref: str | None = None,
+        source_id: str | None = None,
+        description: str | None = None,
+        owner_employee_id: uuid.UUID | None = None,
+        deadline: datetime | None = None,
+        confidence: float | None = None,
+        created_by_agent: str = "extractor",
+        thread_id: str | None = None,
+    ) -> tuple[Task, bool]:
+        """Create a task that must be approved before anyone is contacted.
+
+        The agent path. Unlike create_manual there is **no promotion**: the task falls
+        to the schema's pending_approval default and an approval row is written in
+        `pending`. That is rule 1 — the AI drafts, a human decides.
+
+        source_quote is required here rather than optional, because rule 6 applies to
+        anything the AI produces. A founder can type a task with no citation; an agent
+        cannot.
+
+        Returns ``(task, created)``. Re-running an extraction over the same input
+        returns the existing task untouched rather than duplicating it or reverting a
+        founder's edits.
+        """
+        self.require_own_employee(owner_employee_id, field="employee")
+
+        existing = self.tasks.find_by_idempotency_key(idempotency_key)
+        if existing is not None:
+            return existing, False
+
+        task = self.tasks.create(
+            title=title,
+            description=description,
+            owner_employee_id=owner_employee_id,
+            deadline=deadline,
+            idempotency_key=idempotency_key,
+            source_quote=source_quote,
+            source_ref=source_ref,
+            source_id=source_id,
+            confidence=confidence,
+            created_by_agent=created_by_agent,
+            # status is deliberately not passed — it falls to the server default.
+        )
+
+        self.db.add(
+            Approval(
+                company_id=self.company_id,
+                task_id=task.id,
+                state=ApprovalState.PENDING,
+                thread_id=thread_id,
+            )
+        )
+        self.db.flush()
+        return task, True
+
     def update(self, task_id: uuid.UUID, payload: TaskUpdate) -> Task:
         task = self.get_or_404(task_id)
         values = payload.model_dump(exclude_unset=True)
 
         if "owner_employee_id" in values:
-            self._require_own_employee(values["owner_employee_id"])
+            self.require_own_employee(values["owner_employee_id"], field="employee")
 
         for key, value in values.items():
             setattr(task, key, value)
@@ -123,7 +165,7 @@ class TaskService:
         current state. Neither is derivable from the other cheaply enough to drop.
         """
         task = self.get_or_404(task_id)
-        self._require_own_employee(payload.reported_by_employee_id)
+        self.require_own_employee(payload.reported_by_employee_id, field="employee")
 
         self.tasks.add_status_update(
             task=task,

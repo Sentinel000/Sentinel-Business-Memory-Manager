@@ -28,6 +28,7 @@ from app.models import (
 )
 from app.repositories.employee import EmployeeRepository
 from app.repositories.base import TenantScopedRepository
+from app.services.task_service import TaskService
 
 PASSED: list[str] = []
 FAILED: list[str] = []
@@ -413,6 +414,306 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
             json={"title": "should not work"},
         )
         check("an employee-role token cannot create a task", r.status_code == 403, str(r.status_code))
+
+        print("\nEmployee endpoints")
+
+        r = client.post(
+            "/api/v1/employees",
+            headers=auth_a,
+            json={"name": "Carol Boss", "role_title": "COO"},
+        )
+        check("founder can create an employee", r.status_code == 201, str(r.status_code))
+        boss_id = r.json().get("id", "")
+
+        r = client.patch(
+            f"/api/v1/employees/{emp_a.id}", headers=auth_a, json={"manager_id": boss_id}
+        )
+        check(
+            "manager can be set, and detail shows it",
+            r.status_code == 200 and r.json()["manager"]["name"] == "Carol Boss",
+            str(r.status_code),
+        )
+
+        r = client.get(f"/api/v1/employees/{boss_id}", headers=auth_a)
+        check(
+            "direct reports appear on the manager",
+            r.status_code == 200 and any(x["id"] == str(emp_a.id) for x in r.json()["reports"]),
+        )
+
+        r = client.patch(
+            f"/api/v1/employees/{emp_a.id}", headers=auth_a, json={"manager_id": str(emp_b.id)}
+        )
+        check(
+            "a manager from another company is rejected",
+            r.status_code == 400,
+            str(r.status_code),
+        )
+
+        r = client.patch(
+            f"/api/v1/employees/{emp_a.id}", headers=auth_a, json={"manager_id": str(emp_a.id)}
+        )
+        check("an employee cannot manage themselves", r.status_code == 400, str(r.status_code))
+
+        # Carol manages Alice, so making Alice manage Carol closes a loop.
+        r = client.patch(
+            f"/api/v1/employees/{boss_id}", headers=auth_a, json={"manager_id": str(emp_a.id)}
+        )
+        check("a management cycle is rejected", r.status_code == 400, str(r.status_code))
+
+        r = client.patch(
+            f"/api/v1/employees/{boss_id}", headers=auth_a, json={"slack_user_id": "U123BOSS"}
+        )
+        check("slack_user_id can be mapped", r.status_code == 200)
+
+        r = client.get("/api/v1/employees", headers=auth_a, params={"unmapped": "true"})
+        unmapped_ids = {e["id"] for e in r.json()["items"]}
+        check(
+            "unmapped filter excludes the slack-mapped employee",
+            boss_id not in unmapped_ids and str(emp_a.id) in unmapped_ids,
+        )
+
+        # Two people with the same name must both come back — never a best guess.
+        for _n in range(2):
+            client.post("/api/v1/employees", headers=auth_a, json={"name": "Mark Twin"})
+        r = client.get("/api/v1/employees", headers=auth_a, params={"q": "Mark Twin"})
+        check(
+            "an ambiguous name returns every match, not a guess",
+            r.json()["total"] == 2,
+            str(r.json()["total"]),
+        )
+
+        r = client.get("/api/v1/employees", headers=auth_b)
+        check(
+            "company B sees none of company A's employees",
+            str(emp_a.id) not in {e["id"] for e in r.json()["items"]},
+        )
+
+        # Delete is blocked while they still owe something.
+        blocker = client.post(
+            "/api/v1/tasks",
+            headers=auth_a,
+            json={"title": "owed work", "owner_employee_id": boss_id},
+        ).json()
+        r = client.delete(f"/api/v1/employees/{boss_id}", headers=auth_a)
+        check(
+            "an employee owning open tasks cannot be deleted",
+            r.status_code == 409 and r.json()["details"]["open_task_count"] == 1,
+            str(r.status_code),
+        )
+
+        client.post(
+            f"/api/v1/tasks/{blocker['id']}/status", headers=auth_a, json={"status": "done"}
+        )
+        r = client.delete(f"/api/v1/employees/{boss_id}", headers=auth_a)
+        check("once the task is closed the delete succeeds", r.status_code == 204, str(r.status_code))
+
+        print("\nApproval queue")
+
+        # The agent path: no promotion, so it lands pending.
+        svc = TaskService(db, company_a.id)
+        pending_task, _ = svc.create_pending(
+            title="Send the pricing deck",
+            idempotency_key=f"extract:{suffix}",
+            source_quote="Lisa, can you send the pricing deck by Thursday?",
+            source_ref="Sales Standup, Tue 10:04",
+            owner_employee_id=emp_a.id,
+            confidence=0.82,
+        )
+        db.commit()
+        check(
+            "an agent-created task lands pending_approval",
+            pending_task.status is TaskStatus.PENDING_APPROVAL,
+            str(pending_task.status),
+        )
+
+        r = client.get("/api/v1/approvals", headers=auth_a)
+        queue = r.json()
+        approval_id = next(
+            (a["id"] for a in queue["items"] if a["task_id"] == str(pending_task.id)), None
+        )
+        check("it appears in the approval queue", approval_id is not None)
+        check(
+            "an approved task does not sit in the queue",
+            all(a["task"]["status"] != "approved" for a in queue["items"]),
+        )
+
+        r = client.get(f"/api/v1/approvals/{approval_id}", headers=auth_a)
+        check(
+            "approval detail carries the verbatim source quote",
+            r.json()["task"]["source_quote"] == "Lisa, can you send the pricing deck by Thursday?",
+        )
+
+        r = client.get(f"/api/v1/approvals/{approval_id}", headers=auth_b)
+        check(
+            "another company's approval is a 404, not a 403",
+            r.status_code == 404,
+            str(r.status_code),
+        )
+
+        # Editing is not deciding.
+        r = client.post(
+            f"/api/v1/approvals/{approval_id}/edit",
+            headers=auth_a,
+            json={"title": "Send the pricing deck (v2)"},
+        )
+        check(
+            "edit applies the change but leaves the task undecided",
+            r.status_code == 200
+            and r.json()["task"]["title"] == "Send the pricing deck (v2)"
+            and r.json()["task"]["status"] == "pending_approval",
+            str(r.status_code),
+        )
+        check(
+            "the edit records what changed, before and after",
+            r.json()["edited_payload"]["before"]["title"] == "Send the pricing deck",
+        )
+
+        r = client.get("/api/v1/approvals", headers=auth_a)
+        check(
+            "an edited task stays in the queue",
+            any(a["id"] == approval_id for a in r.json()["items"]),
+        )
+
+        r = client.post(f"/api/v1/approvals/{approval_id}/approve", headers=auth_a)
+        check(
+            "approve releases the task and names the decider",
+            r.status_code == 200
+            and r.json()["task"]["status"] == "approved"
+            and r.json()["decided_by_user_id"] == str(user_a.id)
+            and r.json()["decided_at"] is not None,
+            str(r.status_code),
+        )
+
+        r = client.post(f"/api/v1/approvals/{approval_id}/approve", headers=auth_a)
+        check("approving twice is a 409", r.status_code == 409, str(r.status_code))
+
+        # Reject
+        rejected_task, _ = svc.create_pending(
+            title="Wrong task",
+            idempotency_key=f"extract-bad:{suffix}",
+            source_quote="mumble mumble",
+        )
+        db.commit()
+        r = client.get("/api/v1/approvals", headers=auth_a)
+        reject_id = next(
+            a["id"] for a in r.json()["items"] if a["task_id"] == str(rejected_task.id)
+        )
+        r = client.post(
+            f"/api/v1/approvals/{reject_id}/reject",
+            headers=auth_a,
+            json={"reason": "not a real commitment"},
+        )
+        check(
+            "reject marks the task rejected and stores the reason",
+            r.status_code == 200
+            and r.json()["task"]["status"] == "rejected"
+            and r.json()["rejection_reason"] == "not a real commitment",
+        )
+
+        # Bulk approve, with one bad id mixed in.
+        bulk_ids = []
+        for n in range(2):
+            t, _ = svc.create_pending(
+                title=f"bulk {n}",
+                idempotency_key=f"bulk-{n}:{suffix}",
+                source_quote=f"do bulk {n}",
+            )
+            bulk_ids.append(t.id)
+        db.commit()
+        r = client.get("/api/v1/approvals", headers=auth_a)
+        ids = [a["id"] for a in r.json()["items"] if a["task_id"] in {str(i) for i in bulk_ids}]
+        r = client.post(
+            "/api/v1/approvals/bulk-approve",
+            headers=auth_a,
+            json={"approval_ids": ids + [str(uuid.uuid4())]},
+        )
+        check(
+            "bulk approve moves the good ones and reports the bad",
+            r.status_code == 200 and len(r.json()["approved"]) == 2 and len(r.json()["skipped"]) == 1,
+        )
+
+        print("\nCompany & onboarding")
+
+        r = client.get("/api/v1/company", headers=auth_a)
+        check("company is readable", r.status_code == 200, str(r.status_code))
+        check(
+            "the slack bot token is never serialised",
+            "slack_bot_token" not in r.json() and r.json()["slack_connected"] is False,
+        )
+
+        r = client.patch(
+            "/api/v1/company",
+            headers=auth_a,
+            json={
+                "escalation_after_days": 5,
+                "persona_config": {
+                    "assistant_name": "Atlas",
+                    "tone": "warm",
+                    "company_context": "A 25-person SaaS company.",
+                    "glossary": {"ACV": "annual contract value"},
+                },
+            },
+        )
+        check(
+            "persona and escalation window update",
+            r.status_code == 200
+            and r.json()["escalation_after_days"] == 5
+            and r.json()["persona_config"]["assistant_name"] == "Atlas",
+            str(r.status_code),
+        )
+
+        r = client.patch(
+            "/api/v1/company",
+            headers=auth_a,
+            json={"persona_config": {"company_context": "x" * 5000}},
+        )
+        check(
+            "an over-long company_context is rejected",
+            r.status_code == 400,
+            str(r.status_code),
+        )
+
+        r = client.post(
+            "/api/v1/onboarding/employees/bulk",
+            headers=auth_a,
+            json={
+                "employees": [
+                    {"name": "Dana Eng", "role_title": "Engineer", "manager": "Ellis Lead"},
+                    {"name": "Ellis Lead", "role_title": "Eng Lead"},
+                    {"name": "Frank Ops", "manager": "Nobody Here"},
+                ]
+            },
+        )
+        body = r.json()
+        check("bulk import creates the employees", r.status_code == 200 and len(body["created"]) == 3)
+        check(
+            "a manager named later in the list is still resolved",
+            client.get("/api/v1/employees", headers=auth_a, params={"q": "Dana Eng"}).json()[
+                "items"
+            ][0]["manager_id"]
+            is not None,
+        )
+        check(
+            "an unresolvable manager becomes a warning, not a failure",
+            len(body["warnings"]) == 1 and body["warnings"][0]["employee"] == "Frank Ops",
+        )
+
+        r = client.post(
+            "/api/v1/onboarding/employees/bulk",
+            headers=auth_a,
+            json={"employees": [{"name": "Dana Eng"}]},
+        )
+        check("re-importing an existing name skips rather than duplicates", r.json()["skipped"] == ["Dana Eng"])
+
+        r = client.get("/api/v1/onboarding/status", headers=auth_a)
+        st = r.json()
+        check(
+            "status reports the setup state",
+            st["employee_count"] > 0
+            and st["employees_with_slack"] == 0
+            and st["slack_connected"] is False
+            and st["persona_configured"] is True,
+        )
 
         print("\nAuth (continued)")
 
