@@ -1,0 +1,108 @@
+"""Sentinel Agent Factory (One function builds every Sentinel)."""
+
+from typing import Literal
+
+from langgraph.prebuilt import create_react_agent
+from sqlalchemy.orm import Session
+
+from app.agentic_ai.checkpointer import get_checkpointer
+from app.agentic_ai.config import get_llm
+from app.agentic_ai.prompts import (
+    render_cron_prompt,
+    render_employee_chat_prompt,
+    render_extractor_prompt,
+    render_founder_chat_prompt,
+)
+from app.agentic_ai.tools import (
+    create_cron_task_tools,
+    create_employee_task_tools,
+    create_employee_tools,
+    create_extractor_task_tools,
+    create_founder_task_tools,
+    create_slack_tools,
+)
+from app.models.company import Company
+from app.models.enums import UserRole
+from app.models.user import User
+
+
+def _tools_for(
+    db: Session | None,
+    company: Company,
+    actor: User | None,
+    entry: Literal["chat", "cron", "transcript"],
+    source_ref: str | None = None,
+) -> list:
+    """Determine the strict tool set based on actor role and entry point."""
+    if entry == "chat":
+        if not actor:
+            raise ValueError("Chat entry requires an authenticated user actor.")
+        if actor.role == UserRole.FOUNDER:
+            return create_founder_task_tools(company.id, actor.id) + create_employee_tools(company.id)
+        elif actor.role == UserRole.EMPLOYEE:
+            if not actor.employee_id:
+                raise ValueError("Employee user has no linked employee_id.")
+            return create_employee_task_tools(company.id, actor.id, actor.employee_id)
+        else:
+            raise ValueError(f"Unknown user role: {actor.role}")
+
+    elif entry == "cron":
+        return (
+            create_cron_task_tools(company.id)
+            + create_slack_tools(company.id)
+            + create_employee_tools(company.id)
+        )
+
+    elif entry == "transcript":
+        raw_threshold = getattr(company, "auto_approve_threshold", None)
+        threshold = float(raw_threshold) if raw_threshold is not None and raw_threshold > 0 else 1.0
+        return (
+            create_extractor_task_tools(company.id, threshold=threshold, source_ref=source_ref)
+            + create_employee_tools(company.id)
+        )
+
+    raise ValueError(f"Unknown entry point: {entry}")
+
+
+def _prompt_for(
+    company: Company,
+    actor: User | None,
+    entry: Literal["chat", "cron", "transcript"],
+) -> str:
+    """Render the modular on-demand system prompt."""
+    if entry == "chat":
+        if actor and actor.role == UserRole.EMPLOYEE:
+            return render_employee_chat_prompt(company, actor)
+        elif actor:
+            return render_founder_chat_prompt(company, actor)
+        return render_founder_chat_prompt(company, actor)  # type: ignore
+
+    elif entry == "cron":
+        return render_cron_prompt(company)
+
+    elif entry == "transcript":
+        return render_extractor_prompt(company)
+
+    raise ValueError(f"Unknown entry point: {entry}")
+
+
+def build_sentinel(
+    db: Session,
+    company: Company,
+    *,
+    actor: User | None = None,
+    entry: Literal["chat", "cron", "transcript"] = "chat",
+    source_ref: str | None = None,
+):
+    """Assemble Sentinel agent for one invocation with strict role-scoped tools."""
+    tools = _tools_for(db, company, actor, entry, source_ref)
+    prompt = _prompt_for(company, actor, entry)
+    llm = get_llm()
+    checkpointer = get_checkpointer()
+
+    return create_react_agent(
+        model=llm,
+        tools=tools,
+        prompt=prompt,
+        checkpointer=checkpointer if entry == "chat" else None,
+    )

@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Integer, String, Text
+from sqlalchemy import Float, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -34,6 +34,12 @@ class Company(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     #: interprets.
     escalation_after_days: Mapped[int] = mapped_column(
         Integer, nullable=False, server_default="3"
+    )
+
+    #: Minimum confidence score required to auto-approve an extracted task.
+    #: Default is 1.0 (nothing auto-approves until tuned down).
+    auto_approve_threshold: Mapped[float] = mapped_column(
+        Float, nullable=False, server_default="1.0"
     )
 
     #: Slack bot token from OAuth (step 2). Not a login credential — an authorisation

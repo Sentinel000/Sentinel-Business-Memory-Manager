@@ -1,6 +1,18 @@
 # Changelog
 
-## [0.6.0] - 2026-08-30
+## [0.7.0] - 2026-08-30
+### Added
+- Sentinel Agent Layer in `app/agentic_ai/` powered by DeepAgents (`create_deep_agent` / LangGraph ReAct runtime) and configured for Qwen 3.7 (`qwen3.7-max` on Alibaba Cloud MaaS compatible-mode endpoint).
+- Modular on-demand persona prompt rendering per invocation type: Founder Chat, Employee Chat, Cron Follow-up, and Transcript Extractor.
+- Role-scoped dynamic tool dispatch with strict function closure isolation and concurrency-safe `SessionLocal()` instances.
+- Conversation thread persistence with `PostgresSaver` checkpointer and thread tenant/user isolation (`GET /api/v1/conversations/{id}`).
+- Chat endpoint (`POST /api/v1/chat`) supporting conversational memory, tool calling, and role scoping.
+- Meeting transcript extraction endpoint (`POST /api/v1/knowledge/transcripts`) with automated action item extraction, confidence scoring, and auto-approve threshold gate.
+- Cron follow-up runner and admin endpoint (`POST /api/v1/admin/run-followup`) with daily APScheduler lifecycle.
+- Isolated audit logging layer writing tool invocations to `AuditLog` with token redaction.
+- `auto_approve_threshold` column on `Company` model (`Float`, nullable=False, server_default="1.0") and Alembic migration.
+- Comprehensive end-to-end verification suite in `scripts/verify.py` covering tool isolation, transcript extraction, injection defense, role-based chat, admin follow-up, and audit trails (117/117 checks passing).
+
 ### Added
 - Employee user accounts and login management endpoints (`POST`, `PATCH`, `DELETE` on `/employees/{id}/login`).
 - Employee task surface (`GET /me/tasks`, `GET /me/tasks/{task_id}`, `POST /me/tasks/{task_id}/status`).

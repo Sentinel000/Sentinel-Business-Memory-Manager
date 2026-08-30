@@ -33,6 +33,13 @@ class Settings(BaseSettings):
     environment: str = "development"
     cors_origins: str = "http://localhost:3000"
 
+    # Agent & LLM (Qwen API via OpenAI-compatible endpoint).
+    # No default: a key belongs in .env, never in the repo. See docs/rules/security.md.
+    qwen_api_key: str = ""
+    qwen_api_base: str = "https://ws-pqnqfaz25ftwogus.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1"
+    agent_model: str = "qwen3.6-plus"
+    auto_approve_threshold_default: float = 1.0
+
     @property
     def sqlalchemy_url(self) -> str:
         """The connection string with a psycopg 3 driver prefix.
