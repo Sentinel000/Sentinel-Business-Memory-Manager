@@ -35,17 +35,18 @@ def create_access_token(
     *,
     user_id: uuid.UUID,
     company_id: uuid.UUID,
-    role: UserRole,
+    role: UserRole | str,
     expires_delta: timedelta | None = None,
 ) -> str:
     """Issue a token. company_id is what every downstream query is scoped by."""
     expire = datetime.now(UTC) + (
         expires_delta or timedelta(minutes=settings.access_token_expire_minutes)
     )
+    role_str = role.value if hasattr(role, "value") else str(role)
     claims: dict[str, Any] = {
         "sub": str(user_id),
         "company_id": str(company_id),
-        "role": role.value,
+        "role": role_str,
         "exp": expire,
         "iat": datetime.now(UTC),
     }

@@ -9,6 +9,7 @@ from app.models.approval import Approval
 from app.models.audit_log import AuditLog
 from app.models.base import Base, TenantMixin, TimestampMixin, UUIDPrimaryKeyMixin
 from app.models.company import Company
+from app.models.conversation import Conversation
 from app.models.employee import Employee
 from app.models.enums import ApprovalState, ReportedVia, TaskStatus, UserRole
 from app.models.status_update import StatusUpdate
@@ -21,6 +22,7 @@ __all__ = [
     "AuditLog",
     "Base",
     "Company",
+    "Conversation",
     "Employee",
     "ReportedVia",
     "StatusUpdate",
