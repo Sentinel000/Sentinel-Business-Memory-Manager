@@ -1,0 +1,29 @@
+# Tasks: Employees, Approvals, Company & Onboarding endpoints
+
+- [x] Add `ConflictError` (409, with a details payload) to `app/exceptions.py`
+- [x] Render `details` in the domain exception handler
+- [x] Write `app/services/base.py` with `TenantService` and `require_own_employee`
+- [x] Refactor `TaskService` onto `TenantService` so the guard is not duplicated
+- [x] Write `app/schemas/employee.py`
+- [x] Write `EmployeeService` with manager-cycle rejection and delete blocking
+- [x] Write `app/api/v1/employees.py`
+- [x] Write `app/repositories/approval.py` with `UNDECIDED_STATES`
+- [x] Write `app/schemas/approval.py`
+- [x] Write `ApprovalService` with approve, edit, reject, and bulk approve
+- [x] Write `app/api/v1/approvals.py`
+- [x] Write `app/schemas/company.py` with a typed `PersonaConfig` and context cap
+- [x] Write `app/api/v1/company.py` withholding the Slack bot token
+- [x] Write `app/schemas/onboarding.py`
+- [x] Write `OnboardingService` with two-pass manager resolution
+- [x] Write `app/api/v1/onboarding.py`
+- [x] Add `TaskService.create_pending()` for the extractor write path
+- [x] Register the new services in `app/dependencies.py`
+- [x] Mount the four routers in `app/api/router.py`
+- [x] Seed a pending task so the approval queue is not empty
+- [x] Extend `scripts/verify.py` with employee, approval, company and onboarding checks
+- [x] Run the full verification suite green
+- [x] Smoke test the approval path against Neon
+- [x] Add the `CHANGELOG.md` entry
+- [x] Commit the branch
+- [x] Push `tasks-and-slack` to origin
+- [ ] Open the pull request against `main`

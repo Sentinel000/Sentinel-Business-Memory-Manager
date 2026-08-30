@@ -6,6 +6,7 @@ Idempotent: re-running updates the existing company rather than creating a secon
 """
 
 import sys
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 
@@ -14,7 +15,9 @@ from app.database import SessionLocal
 from app.models import Company, Employee, User, UserRole
 
 DEMO_COMPANY = "Northwind SaaS"
-FOUNDER_EMAIL = "sarah@northwind.test"
+# .example is reserved for documentation (RFC 2606) and passes email-validator.
+# A .test address does NOT - it is rejected before the password is ever checked.
+FOUNDER_EMAIL = "sarah@northwind.example"
 FOUNDER_PASSWORD = "sentinel-demo-2026"  # noqa: S105 - local seed data only
 
 PERSONA = {
@@ -93,6 +96,28 @@ def main() -> int:
             print(f"  + founder login {FOUNDER_EMAIL}")
         else:
             print(f"  founder login exists {FOUNDER_EMAIL}")
+
+        db.flush()
+
+        # A task waiting on approval, so the queue is not empty before the extractor
+        # exists. Shaped exactly as the extractor will write one: a verbatim quote, a
+        # source, a confidence score, and no promotion — it falls to the
+        # pending_approval default.
+        from app.services.task_service import TaskService
+
+        service = TaskService(db, company.id)
+        mark = existing.get("Mark Rivera")
+        _, created_pending = service.create_pending(
+            title="Send Sarah the Q4 forecast",
+            idempotency_key="seed:sales-standup:q4-forecast",
+            source_quote="Mark, can you get me the Q4 forecast by Friday?",
+            source_ref="Sales Standup, Tue 10:04",
+            owner_employee_id=mark.id if mark else None,
+            deadline=datetime.now(UTC) + timedelta(days=2),
+            confidence=0.91,
+        )
+        if created_pending:
+            print("  + pending task awaiting approval")
 
         db.commit()
         print(f"\nseeded. log in as {FOUNDER_EMAIL} / {FOUNDER_PASSWORD}")

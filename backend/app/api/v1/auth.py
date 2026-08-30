@@ -5,15 +5,52 @@ import logging
 from fastapi import APIRouter
 
 from app.config import settings
-from app.core.security import create_access_token, verify_password
+from app.core.security import create_access_token, hash_password, verify_password
 from app.dependencies import CurrentUser, DbSession
 from app.exceptions import InactiveUserError, InvalidCredentialsError, NotFoundError
+from app.models.enums import UserRole
 from app.repositories.company import CompanyRepository
-from app.repositories.user import find_user_for_login
-from app.schemas.auth import CurrentUserResponse, LoginRequest, TokenResponse
+from app.repositories.user import UserRepository, find_user_for_login
+from app.schemas.auth import CurrentUserResponse, LoginRequest, SignupRequest, TokenResponse
+from app.schemas.company import PersonaConfig
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+@router.post("/signup", response_model=TokenResponse)
+def signup(payload: SignupRequest, db: DbSession) -> TokenResponse:
+    """Self-provision a company tenant and founder user account.
+
+    Initializes persona_config.company_context with the provided company description
+    and issues an access token for immediate authenticated onboarding.
+    """
+    persona_config = PersonaConfig(company_context=payload.company_description)
+
+    company_repo = CompanyRepository(db)
+    company = company_repo.create(
+        name=payload.company_name,
+        industry=payload.industry,
+        persona_config=persona_config.model_dump(),
+    )
+
+    user_repo = UserRepository(db, company_id=company.id)
+    user = user_repo.create(
+        email=payload.founder_email,
+        password_hash=hash_password(payload.founder_password),
+        full_name=payload.founder_full_name,
+        role=UserRole.FOUNDER,
+    )
+
+    db.commit()
+
+    token = create_access_token(
+        user_id=user.id, company_id=company.id, role=user.role
+    )
+    return TokenResponse(
+        access_token=token,
+        expires_in=settings.access_token_expire_minutes * 60,
+    )
 
 
 @router.post("/login", response_model=TokenResponse)

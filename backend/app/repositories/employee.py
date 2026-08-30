@@ -1,6 +1,7 @@
 """Employee data access."""
 
-from collections.abc import Sequence
+import uuid
+from collections.abc import Collection, Sequence
 
 from sqlalchemy import func
 
@@ -27,6 +28,17 @@ class EmployeeRepository(TenantScopedRepository[Employee]):
     def search_by_name(self, fragment: str) -> Sequence[Employee]:
         """Partial match, for a first-name mention against a full-name record."""
         stmt = self._scoped().where(Employee.name.ilike(f"%{fragment.strip()}%"))
+        return self.db.execute(stmt).scalars().all()
+
+    def get_many(self, employee_ids: Collection[uuid.UUID]) -> Sequence[Employee]:
+        """Several employees by id, in one tenant-scoped query.
+
+        Used to resolve owner names for a task list without a query per row. Ids from
+        another company simply do not come back.
+        """
+        if not employee_ids:
+            return []
+        stmt = self._scoped().where(Employee.id.in_(list(employee_ids)))
         return self.db.execute(stmt).scalars().all()
 
     def list_unmapped(self) -> Sequence[Employee]:

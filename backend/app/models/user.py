@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from app.models.base import Base, TenantMixin, TimestampMixin, UUIDPrimaryKeyMixin
 from app.models.enums import UserRole, pg_enum
@@ -22,9 +22,10 @@ if TYPE_CHECKING:
 class User(UUIDPrimaryKeyMixin, TenantMixin, TimestampMixin, Base):
     __tablename__ = "users"
     __table_args__ = (
-        # Email is unique per tenant, not globally — the same person may exist in
-        # two companies on a shared deployment.
-        UniqueConstraint("company_id", "email", name="uq_users_company_email"),
+        # Email is globally unique so login is deterministic across tenants.
+        UniqueConstraint("email", name="uq_users_email"),
+        # Enforces 1:1 link with Employee. Nulls allowed for founders.
+        UniqueConstraint("employee_id", name="uq_users_employee_id"),
     )
 
     email: Mapped[str] = mapped_column(String(320), nullable=False, index=True)
@@ -45,6 +46,10 @@ class User(UUIDPrimaryKeyMixin, TenantMixin, TimestampMixin, Base):
 
     company: Mapped["Company"] = relationship(back_populates="users")
     employee: Mapped["Employee | None"] = relationship(back_populates="user")
+
+    @validates("email")
+    def validate_email(self, key: str, value: str) -> str:
+        return value.lower().strip()
 
     def __repr__(self) -> str:
         # Never include the hash. See docs/rules/security.md.

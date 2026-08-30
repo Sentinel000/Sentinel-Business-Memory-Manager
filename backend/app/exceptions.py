@@ -66,14 +66,37 @@ class ValidationError(SentinelError):
     message = "The request was invalid."
 
 
-def _body(code: str, message: str) -> dict[str, str]:
+class ConflictError(SentinelError):
+    """The request is valid but conflicts with the current state.
+
+    Deleting an employee who still owns open tasks, or deciding an approval that has
+    already been decided. Distinct from a validation error: nothing about the request
+    is malformed, it just cannot be applied right now.
+    """
+
+    status_code = status.HTTP_409_CONFLICT
+    code = "CONFLICT"
+    message = "That action conflicts with the current state."
+
+    def __init__(self, message: str | None = None, *, details: dict | None = None) -> None:
+        #: Extra context the client needs to resolve it — e.g. which tasks block a
+        #: delete. Rendered alongside the error rather than buried in the message.
+        self.details = details
+        super().__init__(message)
+
+
+def _body(code: str, message: str) -> dict[str, object]:
     return {"error": message, "code": code}
 
 
 def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(SentinelError)
     async def handle_sentinel_error(_: Request, exc: SentinelError) -> JSONResponse:
-        return JSONResponse(status_code=exc.status_code, content=_body(exc.code, exc.message))
+        content = _body(exc.code, exc.message)
+        details = getattr(exc, "details", None)
+        if details:
+            content["details"] = details
+        return JSONResponse(status_code=exc.status_code, content=content)
 
     @app.exception_handler(RequestValidationError)
     async def handle_validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:
