@@ -12,6 +12,7 @@ from app.agentic_ai.audit import record_audit
 from app.database import SessionLocal
 from app.models.enums import TaskStatus
 from app.models.task import Task
+from app.repositories.employee import EmployeeRepository
 from app.schemas.task import StatusUpdateCreate, TaskCreate, TaskDetail, TaskSummary, TaskUpdate
 from app.services.task_service import TaskService
 
@@ -46,9 +47,23 @@ def create_founder_task_tools(company_id: uuid.UUID, user_id: uuid.UUID) -> list
             with SessionLocal() as session:
                 service = TaskService(session, company_id)
                 status_enum = TaskStatus(status) if status else None
+
+                # list_filtered filters by owner id, not name. Resolve it here, and
+                # refuse to pick when the name is ambiguous rather than answering
+                # about the wrong person.
+                owner_id = None
+                if owner_name:
+                    matches = EmployeeRepository(session, company_id).search_by_name(owner_name)
+                    if not matches:
+                        return [{"error": f"No employee matching {owner_name!r}."}]
+                    if len(matches) > 1:
+                        names = ", ".join(f"{m.name} ({m.role_title or 'no title'})" for m in matches)
+                        return [{"error": f"{owner_name!r} is ambiguous — matches: {names}. Ask which one."}]
+                    owner_id = matches[0].id
+
                 tasks = service.tasks.list_filtered(
                     statuses=[status_enum] if status_enum else None,
-                    owner_name=owner_name,
+                    owner_employee_id=owner_id,
                     overdue=overdue,
                     limit=limit,
                 )
@@ -320,8 +335,14 @@ def create_cron_task_tools(company_id: uuid.UUID) -> list[Callable]:
 def create_extractor_task_tools(
     company_id: uuid.UUID,
     threshold: float,
+    source_ref: str | None = None,
 ) -> list[Callable]:
-    """Create task extraction tools with the confidence approval gate."""
+    """Create task extraction tools with the confidence approval gate.
+
+    source_ref is captured here rather than exposed as a tool argument: the model
+    cannot attribute a task to a meeting it did not come from. Rule 6 — every task
+    cites its source.
+    """
 
     @tool
     def create_extracted_task(
@@ -335,7 +356,22 @@ def create_extractor_task_tools(
         """Record an extracted task from transcript or meeting notes. Status is automatically decided by the confidence threshold."""
         start_time = time.monotonic()
         try:
-            owner_uuid = uuid.UUID(owner_employee_id) if owner_employee_id else None
+            # A name here is a model mistake, not an owner. Reject it with instructions
+            # rather than guessing which "Mark" was meant — "ask Mark" must never
+            # silently pick the wrong one.
+            if owner_employee_id:
+                try:
+                    owner_uuid = uuid.UUID(owner_employee_id)
+                except ValueError:
+                    return {
+                        "error": (
+                            f"owner_employee_id must be a UUID, got {owner_employee_id!r}. "
+                            "Call list_employees to look up the id, then retry. If you "
+                            "cannot identify them confidently, omit owner_employee_id."
+                        )
+                    }
+            else:
+                owner_uuid = None
             deadline_dt = datetime.fromisoformat(deadline) if deadline else None
 
             # Enforce threshold gate (Rule 3: threshold < 1.0 enables auto-approval; threshold >= 1.0 disables auto-approval)
@@ -353,6 +389,7 @@ def create_extractor_task_tools(
                     owner_employee_id=owner_uuid,
                     deadline=deadline_dt,
                     source_quote=source_quote,
+                    source_ref=source_ref,
                     confidence=confidence,
                     created_by_agent="extractor",
                     status=initial_status,

@@ -22,13 +22,11 @@ def create_employee_tools(company_id: uuid.UUID) -> list[Callable]:
         try:
             with SessionLocal() as session:
                 repo = EmployeeRepository(session, company_id)
-                employees = repo.list_all(search=q) if q else repo.list_all()
+                # search_by_name is an ilike fragment match; list() is the tenant-scoped
+                # base read. Neither list_all nor EmployeeSummary.from_employee exists.
+                employees = repo.search_by_name(q) if q else repo.list(limit=200)
                 result = [
-                    EmployeeSummary.from_employee(
-                        emp,
-                        manager_name=emp.manager.name if emp.manager else None,
-                        is_user=emp.user is not None,
-                    ).model_dump(mode="json")
+                    EmployeeSummary.model_validate(emp).model_dump(mode="json")
                     for emp in employees
                 ]
             duration = int((time.monotonic() - start_time) * 1000)

@@ -1,5 +1,6 @@
 """Transcript and meeting notes extraction agent runner."""
 
+from datetime import UTC, datetime
 from typing import Any
 
 from langchain_core.messages import HumanMessage
@@ -16,9 +17,15 @@ def run_transcript_extraction(
     db: Session,
     company: Company,
     transcript_text: str,
+    source_ref: str | None = None,
 ) -> dict[str, Any]:
     """Process a raw transcript or meeting recording, extracting structured action items."""
-    agent = build_sentinel(db, company, entry="transcript")
+    agent = build_sentinel(db, company, entry="transcript", source_ref=source_ref)
+
+    # Bound the result query to this run. Filtering on created_by_agent alone returns
+    # tasks from every previous extraction, so a second meeting would report the
+    # first meeting's tasks as its own.
+    started_at = datetime.now(UTC)
 
     prompt = (
         f"Please extract all action items and commitments from the following transcript.\n"
@@ -33,9 +40,12 @@ def run_transcript_extraction(
     # Fetch tasks created during this run
     recent_tasks = db.execute(
         select(Task)
-        .where(Task.company_id == company.id, Task.created_by_agent == "extractor")
+        .where(
+            Task.company_id == company.id,
+            Task.created_by_agent == "extractor",
+            Task.created_at >= started_at,
+        )
         .order_by(Task.created_at.desc())
-        .limit(20)
     ).scalars().all()
 
     task_summaries = []

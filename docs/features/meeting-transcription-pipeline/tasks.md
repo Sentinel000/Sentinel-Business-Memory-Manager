@@ -1,0 +1,11 @@
+- [ ] Create Meeting and TranscriptSegment models in app/models/meeting.py
+- [ ] Export Meeting and TranscriptSegment models in app/models/__init__.py
+- [ ] Generate and apply Alembic migration for meetings and transcript_segments tables
+- [ ] Create Qwen ASR Flash client in app/services/asr_service.py
+- [ ] Create Pydantic request and response schemas in app/schemas/meeting.py
+- [ ] Implement MeetingRepository in app/repositories/meeting_repository.py
+- [ ] Implement MeetingService coordinating STT and Sentinel Extractor in app/services/meeting_service.py
+- [ ] Implement FastAPI endpoints in app/api/v1/meetings.py
+- [ ] Register meetings router in app/api/router.py
+- [ ] Add meeting transcription and pipeline assertions to scripts/verify.py
+- [ ] Run test suite and confirm 100% pass rate across all checks

@@ -31,6 +31,7 @@ def _tools_for(
     company: Company,
     actor: User | None,
     entry: Literal["chat", "cron", "transcript"],
+    source_ref: str | None = None,
 ) -> list:
     """Determine the strict tool set based on actor role and entry point."""
     if entry == "chat":
@@ -56,7 +57,7 @@ def _tools_for(
         raw_threshold = getattr(company, "auto_approve_threshold", None)
         threshold = float(raw_threshold) if raw_threshold is not None and raw_threshold > 0 else 1.0
         return (
-            create_extractor_task_tools(company.id, threshold=threshold)
+            create_extractor_task_tools(company.id, threshold=threshold, source_ref=source_ref)
             + create_employee_tools(company.id)
         )
 
@@ -91,9 +92,10 @@ def build_sentinel(
     *,
     actor: User | None = None,
     entry: Literal["chat", "cron", "transcript"] = "chat",
+    source_ref: str | None = None,
 ):
     """Assemble Sentinel agent for one invocation with strict role-scoped tools."""
-    tools = _tools_for(db, company, actor, entry)
+    tools = _tools_for(db, company, actor, entry, source_ref)
     prompt = _prompt_for(company, actor, entry)
     llm = get_llm()
     checkpointer = get_checkpointer()
