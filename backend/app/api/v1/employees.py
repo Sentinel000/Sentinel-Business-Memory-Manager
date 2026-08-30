@@ -15,6 +15,9 @@ from app.schemas.employee import (
     EmployeeCreate,
     EmployeeDetail,
     EmployeeListResponse,
+    EmployeeLoginCreate,
+    EmployeeLoginRead,
+    EmployeeLoginUpdate,
     EmployeeSummary,
     EmployeeUpdate,
 )
@@ -127,3 +130,49 @@ def list_employee_tasks(
         limit=limit,
         offset=offset,
     )
+
+
+@router.post(
+    "/{employee_id}/login",
+    response_model=EmployeeLoginRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_employee_login(
+    employee_id: uuid.UUID,
+    payload: EmployeeLoginCreate,
+    service: EmployeeSvc,
+    _: FounderUser,
+    db: DbSession,
+) -> EmployeeLoginRead:
+    """Provision a login account for an employee."""
+    user = service.create_login(employee_id, payload)
+    db.commit()
+    db.refresh(user)
+    return EmployeeLoginRead.model_validate(user)
+
+
+@router.patch("/{employee_id}/login", response_model=EmployeeLoginRead)
+def update_employee_login(
+    employee_id: uuid.UUID,
+    payload: EmployeeLoginUpdate,
+    service: EmployeeSvc,
+    _: FounderUser,
+    db: DbSession,
+) -> EmployeeLoginRead:
+    """Update an employee's login credentials or status (e.g. deactivate)."""
+    user = service.update_login(employee_id, payload)
+    db.commit()
+    db.refresh(user)
+    return EmployeeLoginRead.model_validate(user)
+
+
+@router.delete("/{employee_id}/login", status_code=status.HTTP_204_NO_CONTENT)
+def delete_employee_login(
+    employee_id: uuid.UUID,
+    service: EmployeeSvc,
+    _: FounderUser,
+    db: DbSession,
+) -> None:
+    """Hard-delete an employee's login account, freeing the email address."""
+    service.delete_login(employee_id)
+    db.commit()

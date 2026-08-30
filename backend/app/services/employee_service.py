@@ -11,11 +11,19 @@ from collections.abc import Sequence
 
 from sqlalchemy.orm import Session
 
+from app.core.security import hash_password
 from app.exceptions import ConflictError, NotFoundError, ValidationError
 from app.models.employee import Employee
-from app.models.enums import TaskStatus
+from app.models.enums import TaskStatus, UserRole
+from app.models.user import User
 from app.repositories.task import TERMINAL_STATUSES, TaskRepository
-from app.schemas.employee import EmployeeCreate, EmployeeUpdate
+from app.repositories.user import UserRepository, find_user_for_login
+from app.schemas.employee import (
+    EmployeeCreate,
+    EmployeeLoginCreate,
+    EmployeeLoginUpdate,
+    EmployeeUpdate,
+)
 from app.services.base import TenantService
 
 #: Statuses that still need someone to act. The inverse of TERMINAL_STATUSES, minus
@@ -27,6 +35,7 @@ class EmployeeService(TenantService):
     def __init__(self, db: Session, company_id: uuid.UUID) -> None:
         super().__init__(db, company_id)
         self.tasks = TaskRepository(db, company_id)
+        self.users = UserRepository(db, company_id)
 
     def get_or_404(self, employee_id: uuid.UUID) -> Employee:
         employee = self.employees.get(employee_id)
@@ -93,14 +102,57 @@ class EmployeeService(TenantService):
         self.db.flush()
         return employee
 
+    def create_login(self, employee_id: uuid.UUID, payload: EmployeeLoginCreate) -> User:
+        employee = self.get_or_404(employee_id)
+        if employee.user is not None:
+            raise ConflictError("This employee already has a login account.")
+
+        if find_user_for_login(self.db, payload.email) is not None:
+            raise ConflictError("A user with that email address already exists.")
+
+        user = self.users.create(
+            email=payload.email,
+            password_hash=hash_password(payload.password),
+            full_name=payload.full_name or employee.name,
+            role=UserRole.EMPLOYEE,
+            employee_id=employee.id,
+        )
+        return user
+
+    def update_login(self, employee_id: uuid.UUID, payload: EmployeeLoginUpdate) -> User:
+        employee = self.get_or_404(employee_id)
+        user = employee.user
+        if user is None:
+            raise NotFoundError("Login account not found for this employee.")
+
+        values = payload.model_dump(exclude_unset=True)
+        if "password" in values and values["password"]:
+            user.password_hash = hash_password(values["password"])
+        if "full_name" in values:
+            user.full_name = values["full_name"]
+        if "is_active" in values and values["is_active"] is not None:
+            user.is_active = values["is_active"]
+
+        self.db.flush()
+        return user
+
+    def delete_login(self, employee_id: uuid.UUID) -> None:
+        employee = self.get_or_404(employee_id)
+        user = employee.user
+        if user is None:
+            raise NotFoundError("Login account not found for this employee.")
+
+        self.users.delete(user.id)
+        self.db.flush()
+
     def delete(self, employee_id: uuid.UUID) -> None:
-        """Refuse while they still owe something.
+        """Refuse while they still owe something, and delete linked employee user account.
 
         The FK is ON DELETE SET NULL, so deleting would leave the tasks alive with no
         owner — and an owner-less task cannot be chased, so it drops out of the loop
         silently. Better to make the founder reassign or close them first.
         """
-        self.get_or_404(employee_id)
+        employee = self.get_or_404(employee_id)
 
         open_tasks = self.tasks.list_filtered(
             statuses=OPEN_STATUSES, owner_employee_id=employee_id, limit=50
@@ -113,6 +165,11 @@ class EmployeeService(TenantService):
                     "tasks": [{"id": str(t.id), "title": t.title} for t in open_tasks[:10]],
                 },
             )
+
+        if employee.user is not None:
+            if employee.user.role == UserRole.FOUNDER:
+                raise ConflictError("Cannot delete an employee linked to a founder user account.")
+            self.users.delete(employee.user.id)
 
         self.employees.delete(employee_id)
 

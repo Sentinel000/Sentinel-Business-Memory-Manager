@@ -30,6 +30,7 @@ class CompanyRead(BaseModel):
 
     id: uuid.UUID
     name: str
+    industry: str | None = None
     persona_config: PersonaConfig
     escalation_after_days: int
     #: Never the token itself. Whether Slack is connected is all the dashboard needs,
@@ -41,6 +42,7 @@ class CompanyRead(BaseModel):
 
 class CompanyUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
+    industry: str | None = Field(default=None, min_length=1, max_length=200)
     persona_config: PersonaConfig | None = None
     #: How long a task may sit untouched before escalation. A real number the
     #: follow-up tool reads as an argument, never a word the model interprets.

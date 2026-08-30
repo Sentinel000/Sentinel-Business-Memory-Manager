@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.6.0] - 2026-08-30
+### Added
+- Employee user accounts and login management endpoints (`POST`, `PATCH`, `DELETE` on `/employees/{id}/login`).
+- Employee task surface (`GET /me/tasks`, `GET /me/tasks/{task_id}`, `POST /me/tasks/{task_id}/status`).
+- `require_employee`, `EmployeeUser`, and `CurrentEmployeeId` FastAPI dependencies in `app.dependencies`.
+- `EmployeeStatusUpdateCreate`, `EmployeeLoginCreate`, `EmployeeLoginUpdate`, and `EmployeeLoginRead` Pydantic schemas.
+- `TaskService.get_owned_or_404` helper for task ownership verification.
+### Changed
+- `users.email` constraint updated to globally unique (`uq_users_email`), replacing `uq_users_company_email`.
+- `users.employee_id` unique constraint added (`uq_users_employee_id`) enforcing a 1:1 link with `Employee`.
+- Automatic email normalization on write (`value.lower().strip()`) via `@validates("email")` on `User`.
+- `EmployeeService.delete` updated to delete associated employee `User` rows (and block deletion of founder-linked employees).
+
+## [0.5.0] - 2026-08-30
+### Added
+- `POST /auth/signup` endpoint to allow founders to self-provision a company tenant and founder account.
+- `industry` column on `Company` model (`String(200)`, nullable) and Alembic migration `d1f89a2b5e01_add_company_industry.py`.
+- Exposed `industry` on `CompanyRead`, `CompanyUpdate`, and `CompanySummary` schemas.
+- `SignupRequest` schema in `app.schemas.auth` with `company_description` mapped to `persona_config.company_context`.
+
 ## [0.4.0] - 2026-08-29
 ### Added
 - Employee endpoints (org chart, Slack id mapping, "what is Mark working on"), the approval queue with approve/edit/reject/bulk-approve, company persona config, and structured bulk onboarding. 24 routes total.

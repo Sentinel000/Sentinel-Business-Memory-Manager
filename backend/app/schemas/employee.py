@@ -5,6 +5,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
+from app.models.enums import UserRole
+
 
 class EmployeeCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
@@ -59,3 +61,26 @@ class EmployeeDetail(EmployeeSummary):
 class EmployeeListResponse(BaseModel):
     items: list[EmployeeSummary]
     total: int
+
+
+class EmployeeLoginCreate(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+    full_name: str | None = None
+
+
+class EmployeeLoginUpdate(BaseModel):
+    password: str | None = Field(default=None, min_length=8, max_length=128)
+    full_name: str | None = None
+    is_active: bool | None = None
+
+
+class EmployeeLoginRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    email: EmailStr
+    full_name: str | None = None
+    is_active: bool
+    role: UserRole
+    employee_id: uuid.UUID

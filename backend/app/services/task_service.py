@@ -40,6 +40,16 @@ class TaskService(TenantService):
             raise NotFoundError("Task not found.")
         return task
 
+    def get_owned_or_404(self, task_id: uuid.UUID, employee_id: uuid.UUID) -> Task:
+        """Load a task and verify that employee_id owns it.
+
+        Returns 404 (not 403) on owner mismatch to avoid disclosing task existence.
+        """
+        task = self.get_or_404(task_id)
+        if task.owner_employee_id != employee_id:
+            raise NotFoundError("Task not found.")
+        return task
+
     # --- commands ---------------------------------------------------------------
 
     def create_manual(

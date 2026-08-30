@@ -7,6 +7,7 @@ return blows the context even on a short loop.
 
 import uuid
 from datetime import UTC, datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
@@ -51,6 +52,11 @@ class StatusUpdateCreate(BaseModel):
     note: str | None = Field(default=None, max_length=2_000)
     reported_by_employee_id: uuid.UUID | None = None
     reported_via: ReportedVia = ReportedVia.DASHBOARD
+
+
+class EmployeeStatusUpdateCreate(BaseModel):
+    status: Literal[TaskStatus.IN_PROGRESS, TaskStatus.BLOCKED, TaskStatus.DONE]
+    note: str | None = Field(default=None, max_length=2_000)
 
 
 class StatusUpdateRead(BaseModel):

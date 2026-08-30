@@ -83,6 +83,24 @@ def require_founder(current_user: CurrentUser) -> User:
 FounderUser = Annotated[User, Depends(require_founder)]
 
 
+def require_employee(current_user: CurrentUser) -> User:
+    """Employee-only routes."""
+    if current_user.role is not UserRole.EMPLOYEE or current_user.employee_id is None:
+        raise ForbiddenError("This action is restricted to employees.")
+    return current_user
+
+
+EmployeeUser = Annotated[User, Depends(require_employee)]
+
+
+def get_current_employee_id(employee_user: EmployeeUser) -> uuid.UUID:
+    """Return the employee_id of the authenticated employee user."""
+    return employee_user.employee_id  # type: ignore[return-value]
+
+
+CurrentEmployeeId = Annotated[uuid.UUID, Depends(get_current_employee_id)]
+
+
 # --- Tenant-scoped repositories -------------------------------------------------
 # Routes take these rather than a bare session, so the company filter is applied
 # before a handler can write a query.

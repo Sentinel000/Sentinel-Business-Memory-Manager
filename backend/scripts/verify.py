@@ -715,6 +715,132 @@ def main() -> int:  # noqa: C901 - a linear script of assertions
             and st["persona_configured"] is True,
         )
 
+        print("\nEmployees as Users")
+
+        # 2. Create a login -> 201. Repeat -> 409. Same email on a different employee -> 409.
+        emp_a = Employee(company_id=company_a.id, name=f"Employee A {suffix}")
+        emp_b = Employee(company_id=company_a.id, name=f"Employee B {suffix}")
+        db.add_all([emp_a, emp_b])
+        db.commit()
+
+        emp_email = f"emp-a-{suffix}@verify.example"
+        r = client.post(
+            f"/api/v1/employees/{emp_a.id}/login",
+            headers=auth_a,
+            json={"email": emp_email, "password": "password123", "full_name": emp_a.name},
+        )
+        check("create employee login returns 201", r.status_code == 201, str(r.status_code))
+
+        r_dup = client.post(
+            f"/api/v1/employees/{emp_a.id}/login",
+            headers=auth_a,
+            json={"email": f"another-{suffix}@verify.example", "password": "password123"},
+        )
+        check("creating login twice on same employee returns 409", r_dup.status_code == 409, str(r_dup.status_code))
+
+        r_taken = client.post(
+            f"/api/v1/employees/{emp_b.id}/login",
+            headers=auth_a,
+            json={"email": emp_email, "password": "password123"},
+        )
+        check("using taken email on different employee returns 409", r_taken.status_code == 409, str(r_taken.status_code))
+
+        # 3. Direct-ORM User(...) with duplicate email in other tenant -> IntegrityError
+        try:
+            db.begin_nested()
+            db.add(User(company_id=company_b.id, email=emp_email, password_hash="hash", role=UserRole.EMPLOYEE))
+            db.flush()
+            check("direct-ORM duplicate email in other tenant raises IntegrityError", False, "No exception raised")
+        except IntegrityError:
+            check("direct-ORM duplicate email in other tenant raises IntegrityError", True)
+            db.rollback()
+
+        # 4. Log in as employee -> 200, role employee. Upper-cased email login -> 200.
+        r_login = client.post("/api/v1/auth/login", json={"email": emp_email.upper(), "password": "password123"})
+        check("login with upper-cased email returns 200", r_login.status_code == 200, str(r_login.status_code))
+        emp_token = r_login.json().get("access_token", "")
+        emp_auth = {"Authorization": f"Bearer {emp_token}"}
+        claims_emp = decode_access_token(emp_token) or {}
+        check("token carries employee role", claims_emp.get("role") == "employee")
+
+        # 5. GET /me/tasks returns only that employee's tasks
+        task_own = Task(company_id=company_a.id, title="Own Task", owner_employee_id=emp_a.id, idempotency_key=f"task-own-{suffix}")
+        task_other = Task(company_id=company_a.id, title="Other Task", owner_employee_id=emp_b.id, idempotency_key=f"task-other-{suffix}")
+        db.add_all([task_own, task_other])
+        db.commit()
+
+        r_my_tasks = client.get("/api/v1/me/tasks", headers=emp_auth)
+        check("GET /me/tasks returns 200", r_my_tasks.status_code == 200, str(r_my_tasks.status_code))
+        my_ids = [t["id"] for t in r_my_tasks.json().get("items", [])]
+        check("GET /me/tasks includes own task and excludes other task", str(task_own.id) in my_ids and str(task_other.id) not in my_ids)
+
+        # 6. Another employee's task: GET /me/tasks/{id} and POST .../status -> 404
+        r_other_get = client.get(f"/api/v1/me/tasks/{task_other.id}", headers=emp_auth)
+        check("GET /me/tasks/{other_id} returns 404 Task not found.", r_other_get.status_code == 404 and r_other_get.json().get("error") == "Task not found.")
+
+        r_other_post = client.post(f"/api/v1/me/tasks/{task_other.id}/status", headers=emp_auth, json={"status": "in_progress"})
+        check("POST /me/tasks/{other_id}/status returns 404 Task not found.", r_other_post.status_code == 404 and r_other_post.json().get("error") == "Task not found.")
+
+        # 7. POST /me/tasks/{own}/status with "approved" or "pending_approval" -> 400
+        r_invalid_status = client.post(f"/api/v1/me/tasks/{task_own.id}/status", headers=emp_auth, json={"status": "approved"})
+        check("POST /me/tasks/{own}/status with approved status returns 400", r_invalid_status.status_code == 400, str(r_invalid_status.status_code))
+
+        # 8. Anti-spoofing assertion
+        r_status = client.post(
+            f"/api/v1/me/tasks/{task_own.id}/status",
+            headers=emp_auth,
+            json={"status": "in_progress", "note": "Working on it", "reported_by_employee_id": str(emp_b.id)},
+        )
+        check("POST /me/tasks/{own}/status succeeds", r_status.status_code == 200, str(r_status.status_code))
+        latest_update = r_status.json().get("status_updates", [])[-1]
+        check(
+            "status update pins reported_by_employee_id to caller and via to DASHBOARD",
+            latest_update.get("reported_by_employee_id") == str(emp_a.id) and latest_update.get("reported_via") == "dashboard",
+        )
+
+        # 9. Employee token on GET /tasks -> 403. Founder token on /me/tasks -> 403.
+        r_emp_on_founder = client.get("/api/v1/tasks", headers=emp_auth)
+        check("employee token on founder route returns 403", r_emp_on_founder.status_code == 403, str(r_emp_on_founder.status_code))
+
+        r_founder_on_me = client.get("/api/v1/me/tasks", headers=auth_a)
+        check("founder token on /me/tasks returns 403", r_founder_on_me.status_code == 403, str(r_founder_on_me.status_code))
+
+        # 10. PATCH .../login {"is_active": false} -> next request 403s
+        r_deactivate = client.patch(f"/api/v1/employees/{emp_a.id}/login", headers=auth_a, json={"is_active": False})
+        check("deactivate employee login returns 200", r_deactivate.status_code == 200, str(r_deactivate.status_code))
+        r_deactivated_req = client.get("/api/v1/me/tasks", headers=emp_auth)
+        check("deactivated employee next request returns 403", r_deactivated_req.status_code == 403, str(r_deactivated_req.status_code))
+
+        # 11. DELETE .../login -> 204; re-creating with same email -> 201
+        r_del_login = client.delete(f"/api/v1/employees/{emp_a.id}/login", headers=auth_a)
+        check("delete login returns 204", r_del_login.status_code == 204, str(r_del_login.status_code))
+        r_recreate = client.post(
+            f"/api/v1/employees/{emp_a.id}/login",
+            headers=auth_a,
+            json={"email": emp_email, "password": "password123"},
+        )
+        check("re-creating login after deletion succeeds with 201", r_recreate.status_code == 201, str(r_recreate.status_code))
+
+        # 12. Delete employee with login -> User row deleted. Deleting founder-linked employee -> 409.
+        emp_founder = Employee(company_id=company_a.id, name=f"Sarah Founder {suffix}")
+        db.add(emp_founder)
+        db.commit()
+        user_a.employee_id = emp_founder.id
+        db.commit()
+
+        r_del_founder_emp = client.delete(f"/api/v1/employees/{emp_founder.id}", headers=auth_a)
+        check("deleting founder-linked employee returns 409", r_del_founder_emp.status_code == 409, str(r_del_founder_emp.status_code))
+
+        user_a.employee_id = None
+        db.commit()
+
+        task_own.status = TaskStatus.DONE
+        db.commit()
+        r_del_emp = client.delete(f"/api/v1/employees/{emp_a.id}", headers=auth_a)
+        check("deleting employee deletes linked user row", r_del_emp.status_code == 204, str(r_del_emp.status_code))
+        user_in_db = db.query(User).filter(User.employee_id == emp_a.id).first()
+        check("linked user is gone from DB", user_in_db is None)
+
         print("\nAuth (continued)")
 
         user_a.is_active = False

@@ -13,7 +13,7 @@ class UserRepository(TenantScopedRepository[User]):
     model = User
 
     def find_by_email(self, email: str) -> User | None:
-        """Within this tenant. Email is unique per company, not globally."""
+        """Within this tenant."""
         stmt = self._scoped().where(User.email == email.lower().strip())
         return self.db.execute(stmt).scalar_one_or_none()
 
@@ -25,12 +25,8 @@ def find_user_for_login(db: Session, email: str) -> User | None:
     tenant-scoped, because resolving the tenant is its whole purpose. It reads a
     single user by email and nothing else. Everything downstream uses the
     company_id it returns.
-
-    Note: on a shared deployment where the same email exists in two companies this
-    returns the first match. Per-instance deployments — the intended shape — have one
-    company per database, so it is unambiguous there.
     """
-    stmt = select(User).where(User.email == email.lower().strip()).limit(1)
+    stmt = select(User).where(User.email == email.lower().strip())
     return db.execute(stmt).scalar_one_or_none()
 
 

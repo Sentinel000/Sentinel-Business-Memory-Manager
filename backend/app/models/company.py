@@ -17,6 +17,7 @@ class Company(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "companies"
 
     name: Mapped[str] = mapped_column(String(200), nullable=False)
+    industry: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
     #: Assistant identity and company context. Shape:
     #: {assistant_name, tone, company_context, glossary}
