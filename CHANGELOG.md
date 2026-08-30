@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.0] - 2026-08-30
+### Added
+- Meeting Audio Transcription & Action Item Extraction Pipeline powered by Alibaba Cloud Qwen ASR Flash (`qwen-audio-3.0-asr-flash`).
+- `QwenAudioClient` in `app/services/asr_service.py` with native support for Base64 Data URIs across browser `.webm`, `.wav`, `.mp3`, `.m4a`, `.ogg`, and `.flac` formats with zero server-side transcoding overhead.
+- `Meeting` and `TranscriptSegment` database models in `app/models/meeting.py` with Alembic migration `a1b2c3d4e5f6_add_meetings_and_transcripts.py`.
+- Tenant-scoped `MeetingRepository` and `MeetingService` linking ASR transcription directly to Sentinel's Extractor Agent.
+- API router `app/api/v1/meetings.py` (`POST /audio`, `POST /text`, `GET /`, `GET /{id}`).
+- End-to-end test verification in `scripts/verify.py` (128/128 checks passing).
+
 ## [0.7.0] - 2026-08-30
 ### Added
 - Sentinel Agent Layer in `app/agentic_ai/` powered by DeepAgents (`create_deep_agent` / LangGraph ReAct runtime) and configured for Qwen 3.7 (`qwen3.7-max` on Alibaba Cloud MaaS compatible-mode endpoint).
