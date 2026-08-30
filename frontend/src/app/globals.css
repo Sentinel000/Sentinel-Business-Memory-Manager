@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-stone-canvas: #fafaf9;
+  --color-pure-white: #ffffff;
+  --color-stone-border: #e8e6e5;
+  --color-cyan-signal: #3ba6f1;
+  --color-cyan-edge: #3398e1;
+  --color-sky-wash: #c1e1f7;
+  --color-ink-black: #0c0a09;
+  --color-warm-gray: #78716c;
+  --color-soot: #1c1917;
+}
+
+body {
+  background-color: var(--color-stone-canvas);
+  color: var(--color-ink-black);
+  font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  min-height: 100vh;
+}
+
+.cyan-highlight {
+  color: #3398e1;
+  background-color: #c1e1f7;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.stone-card {
+  background-color: #ffffff;
+  border: 1px solid #e8e6e5;
+  border-radius: 10px;
+  box-shadow: 0px 4px 16px 0px rgba(0, 0, 0, 0.05);
+}
+
+.btn-cyan {
+  background-color: #3ba6f1;
+  border: 1px solid #3398e1;
+  color: #ffffff;
+  border-radius: 9999px;
+  padding: 8px 16px;
+  font-weight: 500;
+  transition: all 0.15s ease-in-out;
+}
+.btn-cyan:hover {
+  background-color: #3398e1;
+}
+
+.btn-ghost {
+  background-color: transparent;
+  border: 1px solid #e8e6e5;
+  color: #0c0a09;
+  border-radius: 9999px;
+  padding: 8px 16px;
+  font-weight: 400;
+  transition: all 0.15s ease-in-out;
+}
+.btn-ghost:hover {
+  background-color: #fafaf9;
+}
