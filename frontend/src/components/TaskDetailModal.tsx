@@ -16,7 +16,7 @@ export const TaskDetailModal: React.FC<Props> = ({ task, onClose, onUpdateStatus
 
   return (
     <div className="fixed inset-0 z-50 bg-black/20 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="stone-card w-full max-w-xl bg-white p-6 space-y-5 animate-in fade-in zoom-in-95 duration-150 shadow-xl">
+      <div className="stone-card w-full max-w-xl bg-white p-5 sm:p-6 space-y-5 animate-in fade-in zoom-in-95 duration-150 shadow-xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-start justify-between gap-4 border-b border-stone-border pb-4">
           <div className="space-y-1">
             <span className="text-xs font-semibold text-cyan-edge bg-sky-wash px-2.5 py-0.5 rounded-full">
@@ -30,7 +30,7 @@ export const TaskDetailModal: React.FC<Props> = ({ task, onClose, onUpdateStatus
         </div>
 
         {/* Task Properties */}
-        <div className="grid grid-cols-2 gap-4 text-xs bg-stone-canvas p-4 rounded-lg border border-stone-border">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs bg-stone-canvas p-4 rounded-lg border border-stone-border">
           <div>
             <span className="text-warm-gray block mb-1">Owner</span>
             <span className="font-semibold text-ink-black flex items-center gap-1 text-sm">
@@ -74,13 +74,13 @@ export const TaskDetailModal: React.FC<Props> = ({ task, onClose, onUpdateStatus
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => onUpdateStatus(task.id, 'IN_PROGRESS')}
+              onClick={() => onUpdateStatus(task.id, 'in_progress')}
               className="btn-ghost text-xs py-1.5 px-3"
             >
               Mark In Progress
             </button>
             <button
-              onClick={() => onUpdateStatus(task.id, 'COMPLETED')}
+              onClick={() => onUpdateStatus(task.id, 'done')}
               className="btn-cyan text-xs py-1.5 px-4"
             >
               Mark Completed

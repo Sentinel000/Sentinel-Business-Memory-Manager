@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agentic_ai.factory import build_sentinel
+from app.agentic_ai.serialization import extract_tool_executions, slice_current_turn
 from app.exceptions import ForbiddenError, NotFoundError
 from app.models.company import Company
 from app.models.conversation import Conversation
@@ -73,4 +74,9 @@ def run_chat_turn(
         "reply": reply_content,
         "conversation_id": str(conv.id),
         "title": conv.title,
+        # What *this* reply was derived from, so the founder can verify it rather
+        # than trust it. Sliced to the current turn: `messages` is the whole
+        # checkpointed thread, and returning all of it made every reply claim
+        # credit for tools called earlier in the conversation.
+        "tool_executions": extract_tool_executions(slice_current_turn(messages)),
     }

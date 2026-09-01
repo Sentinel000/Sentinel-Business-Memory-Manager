@@ -1,6 +1,7 @@
 """Repository for tenant-scoped meeting persistence."""
 
 import uuid
+from datetime import datetime
 from typing import Sequence
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -34,6 +35,7 @@ class MeetingRepository(TenantScopedRepository[Meeting]):
         raw_transcript: str | None = None,
         status: MeetingStatus = MeetingStatus.PENDING,
         duration_seconds: int | None = None,
+        recorded_at: datetime | None = None,
     ) -> Meeting:
         """Create a new tenant meeting record."""
         meeting = Meeting(
@@ -45,6 +47,9 @@ class MeetingRepository(TenantScopedRepository[Meeting]):
             status=status,
             duration_seconds=duration_seconds,
         )
+        # Left to the column default when the caller does not know the real date.
+        if recorded_at is not None:
+            meeting.recorded_at = recorded_at
         self.db.add(meeting)
         self.db.commit()
         self.db.refresh(meeting)

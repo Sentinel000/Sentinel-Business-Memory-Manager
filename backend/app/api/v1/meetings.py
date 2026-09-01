@@ -56,6 +56,7 @@ def create_text_meeting(
         transcript=payload.transcript,
         title=payload.title,
         actor=current_user,
+        recorded_at=payload.recorded_at,
     )
 
     tasks = svc.get_meeting_tasks(meeting)

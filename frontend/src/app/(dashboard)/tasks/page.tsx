@@ -73,12 +73,12 @@ export default function TasksPage() {
       )}
 
       <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center text-xs">
-        <div className="flex gap-1 bg-white p-1 rounded-full border border-stone-border">
-          {['all', 'IN_PROGRESS', 'BLOCKED', 'COMPLETED'].map((f) => (
+        <div className="flex gap-1 bg-white p-1 rounded-full border border-stone-border overflow-x-auto max-w-full">
+          {['all', 'in_progress', 'blocked', 'done'].map((f) => (
             <button
               key={f}
               onClick={() => setStatusFilter(f)}
-              className={`px-3 py-1 rounded-full font-medium transition ${
+              className={`px-3 py-1 rounded-full font-medium capitalize transition ${
                 statusFilter === f ? 'bg-soot text-white shadow-subtle' : 'text-warm-gray hover:text-ink-black'
               }`}
             >

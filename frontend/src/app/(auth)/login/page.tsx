@@ -4,7 +4,9 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { Sparkles, ArrowRight } from 'lucide-react';
+import { apiErrorMessage } from '@/lib/api';
+import { ArrowRight } from 'lucide-react';
+import { BrandMark } from '@/components/BrandMark';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,13 +20,13 @@ export default function LoginPage() {
     setError('');
     try {
       const user = await login(email, password);
-      if (user.role === 'EMPLOYEE') {
+      if (user.role === 'employee') {
         router.push('/me');
       } else {
         router.push('/approvals');
       }
-    } catch {
-      setError('Invalid credentials or network connection error.');
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Invalid credentials or network connection error.'));
     }
   };
 
@@ -33,7 +35,7 @@ export default function LoginPage() {
       <div className="stone-card w-full max-w-md bg-white p-8 space-y-6 shadow-xl">
         <div className="text-center space-y-2">
           <div className="w-10 h-10 bg-ink-black rounded-lg flex items-center justify-center text-white mx-auto">
-            <Sparkles className="w-5 h-5 text-cyan-signal" />
+            <BrandMark className="w-5 h-5" />
           </div>
           <h1 className="text-2xl font-normal text-ink-black tracking-tight font-sans">
             Sign in to <span className="cyan-highlight">Sentinel</span>

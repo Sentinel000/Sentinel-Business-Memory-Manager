@@ -39,7 +39,8 @@ export const useTasksStore = create<TasksState>((set, get) => ({
     set({ isLoading: true });
     try {
       const res = await api.get('/approvals');
-      set({ approvals: res.data, isLoading: false });
+      // The list endpoints answer with an {items, total} envelope, not a bare array.
+      set({ approvals: res.data.items ?? [], isLoading: false });
     } catch {
       set({ isLoading: false });
     }
@@ -79,7 +80,7 @@ export const useTasksStore = create<TasksState>((set, get) => ({
       if (statusFilter !== 'all') params.status = statusFilter;
       if (ownerFilter !== 'all') params.owner_id = ownerFilter;
       const res = await api.get('/tasks', { params });
-      set({ tasks: res.data, isLoading: false });
+      set({ tasks: res.data.items ?? [], isLoading: false });
     } catch {
       set({ isLoading: false });
     }
@@ -116,7 +117,7 @@ export const useTasksStore = create<TasksState>((set, get) => ({
     set({ isLoading: true });
     try {
       const res = await api.get('/me/tasks');
-      set({ myTasks: res.data, isLoading: false });
+      set({ myTasks: res.data.items ?? [], isLoading: false });
     } catch {
       set({ isLoading: false });
     }

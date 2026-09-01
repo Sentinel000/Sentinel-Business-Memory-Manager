@@ -5,7 +5,8 @@ import { useTasksStore } from '@/stores/useTasksStore';
 import { useCompanyStore } from '@/stores/useCompanyStore';
 import { ApprovalCard } from '@/components/ApprovalCard';
 import { ApprovalItem } from '@/types';
-import { CheckSquare, Sparkles } from 'lucide-react';
+import { CheckSquare } from 'lucide-react';
+import { BrandMark } from '@/components/BrandMark';
 
 export default function ApprovalsPage() {
   const { approvals, fetchApprovals, approveTask, rejectTask, editApproval, bulkApprove } = useTasksStore();
@@ -43,7 +44,7 @@ export default function ApprovalsPage() {
       {approvals.length === 0 ? (
         <div className="stone-card p-12 text-center space-y-3 bg-white">
           <div className="w-12 h-12 bg-sky-wash text-cyan-signal rounded-full flex items-center justify-center mx-auto">
-            <Sparkles className="w-6 h-6" />
+            <BrandMark className="w-6 h-6" />
           </div>
           <h3 className="text-base font-semibold text-ink-black">Queue Cleared</h3>
           <p className="text-xs text-warm-gray max-w-sm mx-auto">

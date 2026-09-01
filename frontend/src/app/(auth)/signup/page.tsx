@@ -4,25 +4,40 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { Sparkles, ArrowRight } from 'lucide-react';
+import { apiErrorMessage } from '@/lib/api';
+import { ArrowRight } from 'lucide-react';
+import { BrandMark } from '@/components/BrandMark';
 
 export default function SignupPage() {
   const router = useRouter();
   const { signup } = useAuthStore();
   const [companyName, setCompanyName] = useState('');
+  const [industry, setIndustry] = useState('');
+  const [companyDescription, setCompanyDescription] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSubmitting(true);
     try {
-      await signup(companyName, name, email, password);
+      await signup({
+        company_name: companyName,
+        industry,
+        company_description: companyDescription,
+        founder_email: email,
+        founder_password: password,
+        founder_full_name: name,
+      });
       router.push('/approvals');
-    } catch {
-      setError('Registration failed. Email may already be registered.');
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Registration failed. Please try again.'));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -31,7 +46,7 @@ export default function SignupPage() {
       <div className="stone-card w-full max-w-md bg-white p-8 space-y-6 shadow-xl">
         <div className="text-center space-y-2">
           <div className="w-10 h-10 bg-ink-black rounded-lg flex items-center justify-center text-white mx-auto">
-            <Sparkles className="w-5 h-5 text-cyan-signal" />
+            <BrandMark className="w-5 h-5" />
           </div>
           <h1 className="text-2xl font-normal text-ink-black tracking-tight">
             Deploy <span className="cyan-highlight">Sentinel Instance</span>
@@ -56,6 +71,34 @@ export default function SignupPage() {
               placeholder="e.g. Acme Tech Inc."
               className="w-full px-3.5 py-2 border border-stone-border rounded-lg focus:outline-none focus:border-cyan-signal"
             />
+          </div>
+
+          <div>
+            <label className="block font-medium text-ink-black mb-1">Industry</label>
+            <input
+              type="text"
+              required
+              value={industry}
+              onChange={(e) => setIndustry(e.target.value)}
+              placeholder="e.g. B2B SaaS"
+              className="w-full px-3.5 py-2 border border-stone-border rounded-lg focus:outline-none focus:border-cyan-signal"
+            />
+          </div>
+
+          <div>
+            <label className="block font-medium text-ink-black mb-1">About Your Company</label>
+            <textarea
+              required
+              rows={3}
+              maxLength={4000}
+              value={companyDescription}
+              onChange={(e) => setCompanyDescription(e.target.value)}
+              placeholder="We're a 25-person SaaS co. Mark runs sales, Lisa marketing, John eng."
+              className="w-full px-3.5 py-2 border border-stone-border rounded-lg resize-none focus:outline-none focus:border-cyan-signal"
+            />
+            <p className="mt-1 text-[11px] text-warm-gray">
+              Sentinel uses this to resolve names and terms your team actually uses.
+            </p>
           </div>
 
           <div>
@@ -87,6 +130,7 @@ export default function SignupPage() {
             <input
               type="password"
               required
+              minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
@@ -94,8 +138,12 @@ export default function SignupPage() {
             />
           </div>
 
-          <button type="submit" className="w-full btn-cyan py-2.5 text-xs flex items-center justify-center gap-2 mt-2">
-            <span>Deploy Instance</span>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full btn-cyan py-2.5 text-xs flex items-center justify-center gap-2 mt-2 disabled:opacity-60"
+          >
+            <span>{submitting ? 'Deploying…' : 'Deploy Instance'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>

@@ -40,7 +40,7 @@ def create_founder_task_tools(company_id: uuid.UUID, user_id: uuid.UUID) -> list
         owner_name: str | None = None,
         overdue: bool | None = None,
         limit: int = 20,
-    ) -> list[dict[str, Any]]:
+    ) -> dict[str, Any]:
         """Query and filter tasks across the company. Optionally filter by status (pending_approval, approved, in_progress, blocked, done, rejected), owner name, or overdue status."""
         start_time = time.monotonic()
         try:
@@ -55,10 +55,10 @@ def create_founder_task_tools(company_id: uuid.UUID, user_id: uuid.UUID) -> list
                 if owner_name:
                     matches = EmployeeRepository(session, company_id).search_by_name(owner_name)
                     if not matches:
-                        return [{"error": f"No employee matching {owner_name!r}."}]
+                        return {"error": f"No employee matching {owner_name!r}."}
                     if len(matches) > 1:
                         names = ", ".join(f"{m.name} ({m.role_title or 'no title'})" for m in matches)
-                        return [{"error": f"{owner_name!r} is ambiguous — matches: {names}. Ask which one."}]
+                        return {"error": f"{owner_name!r} is ambiguous — matches: {names}. Ask which one."}
                     owner_id = matches[0].id
 
                 tasks = service.tasks.list_filtered(
@@ -67,14 +67,16 @@ def create_founder_task_tools(company_id: uuid.UUID, user_id: uuid.UUID) -> list
                     overdue=overdue,
                     limit=limit,
                 )
-                result = [_task_to_summary(t) for t in tasks]
+                items = [_task_to_summary(t) for t in tasks]
             duration = int((time.monotonic() - start_time) * 1000)
-            record_audit(None, company_id, "sentinel", "query_tasks", {"status": status, "owner_name": owner_name, "overdue": overdue}, {"count": len(result)}, "success", duration_ms=duration)
-            return result
+            record_audit(None, company_id, "sentinel", "query_tasks", {"status": status, "owner_name": owner_name, "overdue": overdue}, {"count": len(items)}, "success", duration_ms=duration)
+            # `kind` is what the chat UI keys its renderer on. Set here, on the
+            # success path only, so it cannot describe a result that did not happen.
+            return {"kind": "task_list", "count": len(items), "items": items}
         except Exception as e:
             duration = int((time.monotonic() - start_time) * 1000)
             record_audit(None, company_id, "sentinel", "query_tasks", {"status": status}, None, "failure", str(e), duration)
-            return [{"error": str(e)}]
+            return {"error": str(e)}
 
     @tool
     def get_task_detail(task_id: str) -> dict[str, Any]:
@@ -88,7 +90,7 @@ def create_founder_task_tools(company_id: uuid.UUID, user_id: uuid.UUID) -> list
                 detail = _task_to_detail(task)
             duration = int((time.monotonic() - start_time) * 1000)
             record_audit(None, company_id, "sentinel", "get_task_detail", {"task_id": task_id}, detail, "success", duration_ms=duration)
-            return detail
+            return {"kind": "task_detail", "task": detail}
         except Exception as e:
             duration = int((time.monotonic() - start_time) * 1000)
             record_audit(None, company_id, "sentinel", "get_task_detail", {"task_id": task_id}, None, "failure", str(e), duration)
@@ -118,7 +120,7 @@ def create_founder_task_tools(company_id: uuid.UUID, user_id: uuid.UUID) -> list
                 detail = _task_to_detail(task)
             duration = int((time.monotonic() - start_time) * 1000)
             record_audit(None, company_id, "sentinel", "create_task", {"title": title, "owner": owner_employee_id}, detail, "success", duration_ms=duration)
-            return detail
+            return {"kind": "task_created", "task": detail}
         except Exception as e:
             duration = int((time.monotonic() - start_time) * 1000)
             record_audit(None, company_id, "sentinel", "create_task", {"title": title}, None, "failure", str(e), duration)
@@ -150,7 +152,7 @@ def create_founder_task_tools(company_id: uuid.UUID, user_id: uuid.UUID) -> list
                 detail = _task_to_detail(task)
             duration = int((time.monotonic() - start_time) * 1000)
             record_audit(None, company_id, "sentinel", "update_task", {"task_id": task_id}, detail, "success", duration_ms=duration)
-            return detail
+            return {"kind": "task_updated", "task": detail}
         except Exception as e:
             duration = int((time.monotonic() - start_time) * 1000)
             record_audit(None, company_id, "sentinel", "update_task", {"task_id": task_id}, None, "failure", str(e), duration)
@@ -168,7 +170,7 @@ def create_founder_task_tools(company_id: uuid.UUID, user_id: uuid.UUID) -> list
                 detail = _task_to_detail(task)
             duration = int((time.monotonic() - start_time) * 1000)
             record_audit(None, company_id, "sentinel", "approve_task", {"task_id": task_id}, detail, "success", duration_ms=duration)
-            return detail
+            return {"kind": "task_approved", "task": detail}
         except Exception as e:
             duration = int((time.monotonic() - start_time) * 1000)
             record_audit(None, company_id, "sentinel", "approve_task", {"task_id": task_id}, None, "failure", str(e), duration)
@@ -186,7 +188,7 @@ def create_founder_task_tools(company_id: uuid.UUID, user_id: uuid.UUID) -> list
                 detail = _task_to_detail(task)
             duration = int((time.monotonic() - start_time) * 1000)
             record_audit(None, company_id, "sentinel", "reject_task", {"task_id": task_id, "reason": reason}, detail, "success", duration_ms=duration)
-            return detail
+            return {"kind": "task_rejected", "task": detail}
         except Exception as e:
             duration = int((time.monotonic() - start_time) * 1000)
             record_audit(None, company_id, "sentinel", "reject_task", {"task_id": task_id}, None, "failure", str(e), duration)

@@ -6,6 +6,7 @@ from fastapi import APIRouter
 
 from app.config import settings
 from app.core.security import create_access_token, hash_password, verify_password
+from app.knowledge.provisioning import ensure_knowledge_database
 from app.dependencies import CurrentUser, DbSession
 from app.exceptions import InactiveUserError, InvalidCredentialsError, NotFoundError
 from app.models.enums import UserRole
@@ -43,6 +44,10 @@ def signup(payload: SignupRequest, db: DbSession) -> TokenResponse:
     )
 
     db.commit()
+
+    # Knowledge memory is provisioned here so the dashboard reports it connected from
+    # the first login. Failure is non-fatal: the extractor provisions lazily too.
+    ensure_knowledge_database(db, company)
 
     token = create_access_token(
         user_id=user.id, company_id=company.id, role=user.role

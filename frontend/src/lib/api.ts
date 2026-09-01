@@ -31,3 +31,13 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+/** The backend error envelope: {"error": "...", "code": "..."}. */
+export function apiErrorMessage(err: unknown, fallback: string): string {
+  if (axios.isAxiosError(err)) {
+    const data = err.response?.data as { error?: string } | undefined;
+    if (data?.error) return data.error;
+    if (!err.response) return 'Cannot reach the server. Is the API running?';
+  }
+  return fallback;
+}

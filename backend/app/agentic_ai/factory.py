@@ -1,5 +1,6 @@
 """Sentinel Agent Factory (One function builds every Sentinel)."""
 
+from datetime import date
 from typing import Literal
 
 from langgraph.prebuilt import create_react_agent
@@ -15,6 +16,8 @@ from app.agentic_ai.prompts import (
 )
 from app.agentic_ai.tools import (
     create_cron_task_tools,
+    create_knowledge_read_tools,
+    create_knowledge_write_tools,
     create_employee_task_tools,
     create_employee_tools,
     create_extractor_task_tools,
@@ -32,13 +35,20 @@ def _tools_for(
     actor: User | None,
     entry: Literal["chat", "cron", "transcript"],
     source_ref: str | None = None,
+    meeting_title: str | None = None,
+    occurred_on: date | None = None,
 ) -> list:
     """Determine the strict tool set based on actor role and entry point."""
     if entry == "chat":
         if not actor:
             raise ValueError("Chat entry requires an authenticated user actor.")
         if actor.role == UserRole.FOUNDER:
-            return create_founder_task_tools(company.id, actor.id) + create_employee_tools(company.id)
+            return (
+                create_founder_task_tools(company.id, actor.id)
+                + create_employee_tools(company.id)
+                # Read-only: the founder queries settled history, never writes it.
+                + create_knowledge_read_tools(company.id, company.hydra_tenant_id)
+            )
         elif actor.role == UserRole.EMPLOYEE:
             if not actor.employee_id:
                 raise ValueError("Employee user has no linked employee_id.")
@@ -59,6 +69,15 @@ def _tools_for(
         return (
             create_extractor_task_tools(company.id, threshold=threshold, source_ref=source_ref)
             + create_employee_tools(company.id)
+            # A transcript yields commitments *and* knowledge. This is the only
+            # entry point that writes to memory.
+            + create_knowledge_write_tools(
+                company.id,
+                company.hydra_tenant_id,
+                source_ref=source_ref,
+                meeting_title=meeting_title,
+                occurred_on=occurred_on,
+            )
         )
 
     raise ValueError(f"Unknown entry point: {entry}")
@@ -93,9 +112,11 @@ def build_sentinel(
     actor: User | None = None,
     entry: Literal["chat", "cron", "transcript"] = "chat",
     source_ref: str | None = None,
+    meeting_title: str | None = None,
+    occurred_on: date | None = None,
 ):
     """Assemble Sentinel agent for one invocation with strict role-scoped tools."""
-    tools = _tools_for(db, company, actor, entry, source_ref)
+    tools = _tools_for(db, company, actor, entry, source_ref, meeting_title, occurred_on)
     prompt = _prompt_for(company, actor, entry)
     llm = get_llm()
     checkpointer = get_checkpointer()

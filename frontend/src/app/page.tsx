@@ -11,7 +11,7 @@ export default function Home() {
   useEffect(() => {
     fetchCurrentUser().then(() => {
       if (useAuthStore.getState().isAuthenticated) {
-        if (useAuthStore.getState().user?.role === 'EMPLOYEE') {
+        if (useAuthStore.getState().user?.role === 'employee') {
           router.replace('/me');
         } else {
           router.replace('/approvals');

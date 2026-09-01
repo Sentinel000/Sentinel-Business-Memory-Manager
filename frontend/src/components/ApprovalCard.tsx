@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { ApprovalItem, Employee } from '../types';
-import { Check, X, Edit2, Quote, Clock, Sparkles } from 'lucide-react';
+import { Check, X, Edit2, Quote, Clock, Wand2 } from 'lucide-react';
 
 interface Props {
   item: ApprovalItem;
@@ -38,7 +38,7 @@ export const ApprovalCard: React.FC<Props> = ({ item, employees, onApprove, onRe
             </span>
             {item.confidence_score && (
               <span className="text-xs text-warm-gray flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-cyan-signal" />
+                <Wand2 className="w-3 h-3 text-cyan-signal" />
                 {(item.confidence_score * 100).toFixed(0)}% confidence
               </span>
             )}
@@ -86,7 +86,7 @@ export const ApprovalCard: React.FC<Props> = ({ item, employees, onApprove, onRe
               <option value="">Unassigned</option>
               {employees.map((emp) => (
                 <option key={emp.id} value={emp.id}>
-                  {emp.name} ({emp.title || 'Team Member'})
+                  {emp.name} ({emp.role_title || 'Team Member'})
                 </option>
               ))}
             </select>

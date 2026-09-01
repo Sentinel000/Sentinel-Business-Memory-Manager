@@ -52,10 +52,12 @@ def list_employees(
     that must stay visibly ambiguous rather than resolve to one of them.
     """
     employees = service.list(search=q, unmapped=unmapped, manager_id=manager_id)
-    return EmployeeListResponse(
-        items=[EmployeeSummary.model_validate(e) for e in employees],
-        total=len(employees),
-    )
+    items = []
+    for employee in employees:
+        summary = EmployeeSummary.model_validate(employee)
+        summary.has_login = employee.user is not None
+        items.append(summary)
+    return EmployeeListResponse(items=items, total=len(items))
 
 
 @router.post("", response_model=EmployeeDetail, status_code=status.HTTP_201_CREATED)

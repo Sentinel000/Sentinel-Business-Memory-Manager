@@ -1,6 +1,7 @@
 """Service layer for meeting recording, transcription, and task extraction."""
 
 import uuid
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -102,6 +103,8 @@ class MeetingService(TenantService):
                     company=self.company,
                     transcript_text=transcript_text,
                     source_ref=source_ref,
+                    meeting_title=meeting.title,
+                    occurred_on=meeting.recorded_at.date() if meeting.recorded_at else None,
                 )
                 extracted_tasks = ext_res.get("tasks_extracted", [])
 
@@ -123,10 +126,12 @@ class MeetingService(TenantService):
         transcript: str,
         title: str,
         actor: User | None = None,
+        recorded_at: datetime | None = None,
     ) -> tuple[Meeting, list[dict[str, Any]]]:
         """Process direct transcript text and extract structured tasks."""
         meeting = self.meetings.create_meeting(
             title=title,
+            recorded_at=recorded_at,
             raw_transcript=transcript,
             audio_format="text",
             status=MeetingStatus.EXTRACTING,
@@ -140,6 +145,8 @@ class MeetingService(TenantService):
                 company=self.company,
                 transcript_text=transcript,
                 source_ref=source_ref,
+                meeting_title=meeting.title,
+                occurred_on=meeting.recorded_at.date() if meeting.recorded_at else None,
             )
             extracted_tasks = ext_res.get("tasks_extracted", [])
 

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { Mic, Square, Upload, FileText, Sparkles } from 'lucide-react';
+import { Mic, Square, Upload, FileText, Loader2 } from 'lucide-react';
 import { useMeetingsStore } from '../stores/useMeetingsStore';
 
 export const AudioRecorderStudio: React.FC = () => {
@@ -172,7 +172,7 @@ export const AudioRecorderStudio: React.FC = () => {
 
       {isProcessing && (
         <div className="p-3 bg-sky-wash border border-cyan-edge/30 rounded-lg flex items-center gap-3 text-xs text-cyan-edge">
-          <Sparkles className="w-4 h-4 animate-spin shrink-0" />
+          <Loader2 className="w-4 h-4 animate-spin shrink-0" />
           <span className="font-medium">{processingMessage}</span>
         </div>
       )}
