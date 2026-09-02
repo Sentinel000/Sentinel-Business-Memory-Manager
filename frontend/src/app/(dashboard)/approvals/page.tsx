@@ -3,10 +3,10 @@
 import React, { useEffect } from 'react';
 import { useTasksStore } from '@/stores/useTasksStore';
 import { useCompanyStore } from '@/stores/useCompanyStore';
-import { ApprovalCard } from '@/components/ApprovalCard';
+import { ApprovalCard } from '@/components/approvals';
 import { ApprovalItem } from '@/types';
 import { CheckSquare } from 'lucide-react';
-import { BrandMark } from '@/components/BrandMark';
+import { BrandMark } from '@/components/ui';
 
 export default function ApprovalsPage() {
   const { approvals, fetchApprovals, approveTask, rejectTask, editApproval, bulkApprove } = useTasksStore();

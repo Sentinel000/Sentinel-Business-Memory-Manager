@@ -2,7 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { Bell } from 'lucide-react';
-import { useRemindersStore, unanswered } from '../stores/useRemindersStore';
+import { useRemindersStore, unanswered } from '@/stores/useRemindersStore';
 
 /**
  * Reminders Sentinel has sent this employee.

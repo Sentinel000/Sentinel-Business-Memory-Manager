@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ToolExecution } from '../types';
+import { ToolExecution } from '@/types';
 import { rendererFor, isOutcome } from './ToolResultRenderers';
 import { ChevronRight, Wrench, AlertTriangle, Check } from 'lucide-react';
 

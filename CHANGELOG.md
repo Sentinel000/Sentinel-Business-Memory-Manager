@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.15.0] - 2026-09-02
+
+### Added
+- Replaced flat signup form with a 4-step onboarding wizard featuring step validation, industry chips, guided templates, and animated deployment feedback.
+- Split Settings into dedicated Sentinel Persona and Employee Roster tabs, with a centered showcase hero, Business Companion badge, and realistic 3D shaded animated Sentinel bot.
+- Redesigned Briefings UI into an interactive card grid that opens a full-detail inspection modal with metrics and all 4 analytical sections.
+- Integrated Variation 3 (Continuous Memory 'S' Loop) as the official brandmark across application headers, auth flows, and browser metadata.
+
+### Changed
+- Reorganized frontend components into domain folders with barrel exports (`ui`, `layout`, `approvals`, `tasks`, `meetings`, `chat`, `knowledge`, `settings`, `employee`) to improve modularity and avoid flat folder sprawl.
+
+### Removed
+- Removed legacy Slack mapping column from employee roster table and deleted Daily Wakeup Cron status card from dashboard sidebar.
+
+## [0.14.1] - 2026-09-02
+
+### Fixed
+- **The settings form was saving nothing.** `PersonaConfigForm` PATCHed `persona_instructions`, `escalation_window_hours`, and `auto_approve_threshold` — none of which exist in `CompanyUpdate`. Pydantic ignored them, so the escalation window and approval threshold controls had silently done nothing since they were built, and the page header advertised "escalation parameters" that could not be set. Field names corrected, and the form now seeds from the server rather than rendering its own defaults over the founder's real configuration.
+- `auto_approve_threshold` and `max_chases` are now in `CompanyRead` and `CompanyUpdate`. Bounded server-side: `max_chases` 1–5, threshold 0.5–1.0, cadence 1–30.
+
+### Added
+- **Follow-up controls in settings**, with an `InfoTip` on each — cadence, chase limit, and auto-approve threshold. Tips explain the behaviour, not the field: why the limit is low, what happens at 100% threshold, that an overdue task is chased regardless of cadence.
+- **The settings restated as behaviour.** Two numbers mean little alone, so the card renders "Sentinel will send up to 2 reminders, 3 days apart, then hand the task back to you", plus the derived worst case — how long a commitment can sit unanswered before it reaches the founder. This is the only place in the product where the ladder is explained.
+- `InfoTip` is toggled on click as well as hover and is keyboard-focusable, wired via `aria-describedby` — a tooltip that only opens on hover is invisible to half the people who need it.
+
+### Notes
+- **Lowering the chase limit now reconciles.** `escalated` is normally set inside the chase cycle at the moment budget runs out; lowering the limit exhausts tasks retroactively, and they would match neither the chase query nor the briefing's decision section — stranded in Quiet, never chased and never surfaced. A single `UPDATE` on save hands them back. Raising the limit deliberately does not un-escalate: the founder has already been asked to decide.
+- No reset-to-defaults control. The defaults stand on their own, and it is one more thing to explain.
+- `scripts/verify_settings.py` — 17 checks, including that the settings persist (they did not before), bounds are enforced, and employees are refused.
+
 ## [0.14.0] - 2026-09-02
 
 ### Changed — Slack is no longer the delivery channel

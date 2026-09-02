@@ -90,10 +90,22 @@ export interface Meeting {
 export interface Company {
   id: string;
   name: string;
-  persona_instructions?: string | null;
-  escalation_window_hours?: number;
-  slack_bot_configured?: boolean;
+  industry?: string | null;
+  persona_config?: {
+    assistant_name?: string;
+    tone?: string;
+    company_context?: string;
+    glossary?: Record<string, string>;
+  };
+  /** Days of silence tolerated before a reminder, and the gap between reminders. */
+  escalation_after_days: number;
+  /** Reminders sent before a task stops being chased and is handed to the founder. */
+  max_chases: number;
+  /** Confidence at or above which an extracted task skips the approval queue. */
   auto_approve_threshold: number;
+  slack_connected?: boolean;
+  slack_team_id?: string | null;
+  knowledge_connected?: boolean;
 }
 
 /** One tool call the agent made, as returned by the chat API. */

@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useCompanyStore } from '../stores/useCompanyStore';
+import { useCompanyStore } from '@/stores/useCompanyStore';
+import { Employee } from '@/types';
 import { Plus, UserCheck, KeyRound, Trash2 } from 'lucide-react';
-import { apiErrorMessage } from '../lib/api';
+import { apiErrorMessage } from '@/lib/api';
 
 export const EmployeeRosterTable: React.FC = () => {
   const { employees, createEmployee, deleteEmployee, provisionLogin, bulkImportEmployees } = useCompanyStore();
@@ -68,7 +69,7 @@ export const EmployeeRosterTable: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-stone-border pb-4">
         <div className="space-y-1">
           <h3 className="font-semibold text-ink-black text-base">Employee Roster & Access</h3>
-          <p className="text-xs text-warm-gray">Manage team hierarchy, Slack mapping, and dashboard credentials</p>
+          <p className="text-xs text-warm-gray">Manage team hierarchy and dashboard credentials</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setShowBulk(!showBulk)} className="btn-ghost text-xs py-1.5 px-3">
@@ -122,7 +123,6 @@ export const EmployeeRosterTable: React.FC = () => {
               <th className="p-3">Employee Name</th>
               <th className="p-3">Title</th>
               <th className="p-3">Manager</th>
-              <th className="p-3">Slack Mapping</th>
               <th className="p-3">Portal Login</th>
               <th className="p-3 text-right">Actions</th>
             </tr>
@@ -134,13 +134,6 @@ export const EmployeeRosterTable: React.FC = () => {
                 <td className="p-3 text-warm-gray">{emp.role_title || 'Team Member'}</td>
                 <td className="p-3 text-warm-gray">
                   {(emp.manager_id && nameById.get(emp.manager_id)) || 'Self / Founder'}
-                </td>
-                <td className="p-3">
-                  {emp.slack_user_id ? (
-                    <span className="px-2 py-0.5 text-[10px] bg-emerald-100 text-emerald-800 rounded-full">Mapped</span>
-                  ) : (
-                    <span className="px-2 py-0.5 text-[10px] bg-amber-100 text-amber-800 rounded-full">Unmapped</span>
-                  )}
                 </td>
                 <td className="p-3">
                   {emp.has_login ? (

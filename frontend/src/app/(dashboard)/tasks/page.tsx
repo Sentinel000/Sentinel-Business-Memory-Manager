@@ -3,8 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTasksStore } from '@/stores/useTasksStore';
 import { useCompanyStore } from '@/stores/useCompanyStore';
-import { TaskCard } from '@/components/TaskCard';
-import { TaskDetailModal } from '@/components/TaskDetailModal';
+import { TaskCard, TaskDetailModal } from '@/components/tasks';
 import { Task, Employee } from '@/types';
 import { Plus } from 'lucide-react';
 

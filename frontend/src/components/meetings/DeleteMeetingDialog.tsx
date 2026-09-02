@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useMeetingsStore } from '../stores/useMeetingsStore';
-import { Meeting, MeetingDeletePreview } from '../types';
+import { useMeetingsStore } from '@/stores/useMeetingsStore';
+import { Meeting, MeetingDeletePreview } from '@/types';
 import { AlertTriangle, Loader2, X } from 'lucide-react';
 
 /**

@@ -2,9 +2,9 @@
 
 import React, { useEffect } from 'react';
 import Link from 'next/link';
-import { useAuthStore } from '../stores/useAuthStore';
-import { useUIStore } from '../stores/useUIStore';
-import { BrandLockup } from './BrandMark';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { useUIStore } from '@/stores/useUIStore';
+import { BrandLockup } from '@/components/ui';
 import { MessageSquare, LogOut, Shield, Menu, Sun, Moon } from 'lucide-react';
 
 export const Header: React.FC = () => {

@@ -1,0 +1,40 @@
+# Scheduling and Briefings — Tasks
+
+- [x] Add `max_chases` to Company, `chase_count` to Task, and the `reports` table in migration `b7c8d9e0f1a2`
+- [x] Add the `Report` model and register it in `app/models/__init__.py`
+- [x] Implement `chase_service.due_for_chase()` with the silence-and-deadline trigger query
+- [x] Exclude blocked, unowned, terminal, and pending-approval tasks from chasing
+- [x] Add the rate-limit clause so an overdue task cannot be chased more than once per cadence
+- [x] Implement `chase_service.run_chase_cycle()` writing reminders as `ReportedVia.AGENT` timeline entries
+- [x] Set `escalated` and stop chasing when `chase_count` reaches `max_chases`
+- [x] Add chase semantics to `TaskService.record_status()` for employee blocked and active responses
+- [x] Add founder-only chase reset to `TaskService.update()`, gated on a real value change
+- [x] Rewrite `scheduler.daily_wake_up_job()` to run chasing only, with a session per tenant
+- [x] Remove the `cron` entry and Slack tools from `agentic_ai/factory.py`
+- [x] Delete `agents/followup.py` and its export
+- [x] Replace `POST /admin/run-followup` with `POST /admin/run-chase`
+- [x] Implement `report_service` sections: needs decision, slipping, moved, quiet
+- [x] Measure the moved section against the previous briefing rather than a fixed window
+- [x] Compute headline counts in SQL
+- [x] Make `generate_report()` idempotent on `(company_id, report_date)`
+- [x] Add report schemas and the `/api/v1/reports` routes with founder scoping
+- [x] Add `GET /me/reminders` resolving `answered` in one grouped query
+- [x] Add `ReminderRead` schema
+- [x] Add frontend types for reports, sections, items, and reminders
+- [x] Add `useReportsStore` and `useRemindersStore`
+- [x] Build the `/briefings` page with generate, regenerate, history, and delete
+- [x] Build the employee reminder banner and mount it on `/me`
+- [x] Add the Briefings entry to the founder sidebar
+- [x] Write `scripts/verify_chase.py`
+- [x] Write `scripts/verify_report.py`
+- [x] Write `scripts/verify_reports_api.py`
+- [x] Add the CHANGELOG entry
+- [ ] Render `/briefings` and `/me` in a browser and confirm both visually
+- [x] Expose `max_chases`, cadence, and the auto-approve threshold in the founder settings UI with tooltips
+- [x] Add `max_chases` and `auto_approve_threshold` to `CompanyRead` and `CompanyUpdate`
+- [x] Reconcile `escalated` when the chase limit is lowered, so exhausted tasks are not stranded
+- [x] Write `scripts/verify_settings.py`
+- [ ] Filter test tenants out of the daily scheduler job
+- [ ] Guard the scheduler against firing once per uvicorn worker
+- [ ] Fix `backend/.env.example` to document `HYDRA_DB_API_KEY` rather than `HYDRA_API_KEY`
+- [ ] Decide whether to delete `slack_tools.py` and `prompts/cron.py` or keep them dormant

@@ -12,7 +12,7 @@ import {
   Simulation,
   SimulationNodeDatum,
 } from 'd3-force';
-import { GraphEdge, GraphNode } from '../types';
+import { GraphEdge, GraphNode } from '@/types';
 
 /**
  * Colour carries entity type and nothing else.

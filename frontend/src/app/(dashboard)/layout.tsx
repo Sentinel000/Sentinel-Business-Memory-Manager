@@ -2,8 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { Header } from '@/components/Header';
-import { Sidebar } from '@/components/Sidebar';
+import { Header, Sidebar } from '@/components/layout';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useTasksStore } from '@/stores/useTasksStore';
 

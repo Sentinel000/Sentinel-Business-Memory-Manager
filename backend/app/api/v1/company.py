@@ -5,6 +5,8 @@ from fastapi import APIRouter
 from app.dependencies import CompanyId, CompanyRepo, DbSession, FounderUser
 from app.exceptions import NotFoundError
 from app.models.company import Company
+from app.models.task import Task
+from app.repositories.task import TERMINAL_STATUSES
 from app.schemas.company import CompanyRead, CompanyUpdate
 
 router = APIRouter(prefix="/company", tags=["company"])
@@ -17,6 +19,8 @@ def _read(company: Company) -> CompanyRead:
         name=company.name,
         persona_config=company.persona_config or {},
         escalation_after_days=company.escalation_after_days,
+        max_chases=company.max_chases,
+        auto_approve_threshold=company.auto_approve_threshold,
         slack_connected=bool(company.slack_bot_token),
         slack_team_id=company.slack_team_id,
         knowledge_connected=bool(company.hydra_tenant_id),
@@ -55,6 +59,31 @@ def update_company(
     for key, value in values.items():
         setattr(company, key, value)
 
+    if "max_chases" in values and values["max_chases"] is not None:
+        _reconcile_chase_limit(db, company)
+
     db.commit()
     db.refresh(company)
     return _read(company)
+
+
+def _reconcile_chase_limit(db: DbSession, company: Company) -> None:
+    """Hand back tasks that the new, lower limit has already exhausted.
+
+    ``escalated`` is normally set inside the chase cycle, at the moment a task runs
+    out of budget. Lowering the limit exhausts tasks retroactively, and they would
+    otherwise match neither the chase query (``chase_count < max_chases`` is now
+    false) nor the briefing's decision section (``escalated`` is still false) —
+    leaving them stranded in Quiet, never chased and never surfaced, which defeats
+    the terminal state the whole ladder depends on.
+
+    Raising the limit is deliberately not reversed: the founder has already been
+    told about those tasks, and silently pulling them back off the briefing would
+    lose work they were asked to decide on.
+    """
+    db.query(Task).filter(
+        Task.company_id == company.id,
+        Task.status.notin_(TERMINAL_STATUSES),
+        Task.escalated.is_(False),
+        Task.chase_count >= company.max_chases,
+    ).update({"escalated": True}, synchronize_session=False)

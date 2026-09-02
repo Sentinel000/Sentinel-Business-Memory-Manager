@@ -32,7 +32,12 @@ class CompanyRead(BaseModel):
     name: str
     industry: str | None = None
     persona_config: PersonaConfig
+    #: Days of silence tolerated before a reminder. Also the gap between reminders.
     escalation_after_days: int
+    #: Reminders sent before a task stops being chased and is handed to the founder.
+    max_chases: int = 2
+    #: Confidence at or above which an extracted task skips the approval queue.
+    auto_approve_threshold: float = 1.0
     #: Never the token itself. Whether Slack is connected is all the dashboard needs,
     #: and a bot token in a JSON response is a credential in a browser's memory.
     slack_connected: bool = False
@@ -47,3 +52,10 @@ class CompanyUpdate(BaseModel):
     #: How long a task may sit untouched before escalation. A real number the
     #: follow-up tool reads as an argument, never a word the model interprets.
     escalation_after_days: int | None = Field(default=None, ge=1, le=30)
+    #: Capped at 5. A longer ladder does not persuade anyone — it only delays the
+    #: moment the founder learns a commitment is dead, and fills the briefing with
+    #: tasks nobody will action.
+    max_chases: int | None = Field(default=None, ge=1, le=5)
+    #: 1.0 means nothing auto-approves. Below 0.5 the founder is effectively no
+    #: longer reviewing, so the floor is deliberate rather than arbitrary.
+    auto_approve_threshold: float | None = Field(default=None, ge=0.5, le=1.0)
