@@ -156,6 +156,11 @@ class TaskService(TenantService):
         self.db.flush()
         return task, True
 
+    #: Founder edits that constitute a genuinely new commitment cycle, and so earn
+    #: the task a fresh chase budget. A title or description fix does not — the
+    #: person still owes the same thing by the same date.
+    _CHASE_RESETTING_FIELDS = ("status", "owner_employee_id", "deadline")
+
     def update(self, task_id: uuid.UUID, payload: TaskUpdate) -> Task:
         task = self.get_or_404(task_id)
         values = payload.model_dump(exclude_unset=True)
@@ -163,8 +168,24 @@ class TaskService(TenantService):
         if "owner_employee_id" in values:
             self.require_own_employee(values["owner_employee_id"], field="employee")
 
+        # Compared before the writes, and by value: a payload that merely echoes the
+        # current owner is not a reassignment, and must not restart the ladder.
+        reactivated = any(
+            field in values and values[field] != getattr(task, field)
+            for field in self._CHASE_RESETTING_FIELDS
+        )
+
         for key, value in values.items():
             setattr(task, key, value)
+
+        if reactivated:
+            # The founder unblocked, reassigned, or moved the date — the situation
+            # changed, so the owner should not inherit a spent budget for a blocker
+            # that was legitimate.
+            task.chase_count = 0
+            task.escalated = False
+            task.last_chased_at = None
+
         self.db.flush()
         return task
 
@@ -185,6 +206,20 @@ class TaskService(TenantService):
             reported_via=payload.reported_via,
         )
         task.status = payload.status
+
+        # A report is a response, and a response is what chasing was asking for.
+        # `escalated` means "waiting on the founder", so it tracks the answer:
+        # blocked hands the task over, anything active hands it back.
+        #
+        # `chase_count` deliberately does NOT reset here. Only a founder action
+        # grants a fresh budget — otherwise marking oneself blocked and then in
+        # progress would mint unlimited chases. Silence after a response is caught
+        # by the report's quiet section, which reads the timeline, not the counter.
+        if payload.status is TaskStatus.BLOCKED:
+            task.escalated = True
+        elif payload.status in (TaskStatus.IN_PROGRESS, TaskStatus.DONE):
+            task.escalated = False
+
         self.db.flush()
         return task
 

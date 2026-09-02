@@ -15,6 +15,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Index,
+    Integer,
     String,
     Text,
     UniqueConstraint,
@@ -81,6 +82,19 @@ class Task(UUIDPrimaryKeyMixin, TenantMixin, TimestampMixin, Base):
     #: Set once the delegation DM has gone out, so a re-run does not message twice.
     delegated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_chased_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    #: Reminders sent so far, against the company's ``max_chases``.
+    #:
+    #: Only a *founder* action resets this to zero — unblocking, reassigning, or
+    #: moving the deadline. An employee marking themselves in progress restarts the
+    #: silence clock but not the budget, so "mark blocked to buy time" cannot mint a
+    #: fresh set of chases.
+    chase_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+
+    #: Chasing has stopped and the task is waiting on the founder. Previously meant
+    #: "the manager was DM'd"; with Slack gone the founder *is* the escalation path,
+    #: so it now means "handed back" — set when the chase limit is reached or the
+    #: owner reports a blocker.
     escalated: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
 
     owner: Mapped["Employee | None"] = relationship(
