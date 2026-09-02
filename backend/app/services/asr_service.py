@@ -29,13 +29,12 @@ class QwenAudioClient:
     ) -> dict[str, Any]:
         """Transcribe audio bytes to text and timestamps using Qwen ASR Flash."""
         if not self.api_key:
-            logger.warning("No QWEN_API_KEY configured; returning empty transcription.")
-            return {
-                "text": "",
-                "duration_seconds": 0,
-                "segments": [],
-                "words": [],
-            }
+            # Fail loudly. Returning empty text here produced a meeting that
+            # transcribed to nothing and extracted no tasks, with no error anywhere —
+            # a misconfigured deploy looked like a quiet meeting.
+            raise RuntimeError(
+                "QWEN_API_KEY is not configured. Set it in .env — see backend/.env.example."
+            )
 
         # Normalize audio format
         fmt = audio_format.lower().replace(".", "").replace("audio/", "").replace(";codecs=opus", "")
