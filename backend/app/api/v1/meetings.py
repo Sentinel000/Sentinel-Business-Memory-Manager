@@ -56,6 +56,7 @@ def create_text_meeting(
         transcript=payload.transcript,
         title=payload.title,
         actor=current_user,
+        recorded_at=payload.recorded_at,
     )
 
     tasks = svc.get_meeting_tasks(meeting)
@@ -88,3 +89,35 @@ def get_meeting(
     detail = MeetingDetailRead.model_validate(meeting)
     detail.extracted_tasks = [TaskSummary.model_validate(t) for t in tasks]
     return detail
+
+
+@router.get("/{meeting_id}/delete-preview")
+def preview_meeting_delete(
+    meeting_id: uuid.UUID,
+    current_user: FounderUser,
+    db: DbSession,
+) -> dict:
+    """What deleting this meeting would remove. Changes nothing.
+
+    `fact_count` is null when the knowledge store could not be reached — the UI
+    must say "unknown" rather than "0", so the founder never confirms a permanent
+    delete against a count that was really a failed lookup.
+    """
+    svc = MeetingService(db, current_user.company)
+    return svc.preview_delete(svc.get_meeting_or_404(meeting_id))
+
+
+@router.delete("/{meeting_id}")
+def delete_meeting(
+    meeting_id: uuid.UUID,
+    current_user: FounderUser,
+    db: DbSession,
+) -> dict:
+    """Permanently delete a meeting and every fact extracted from it.
+
+    Irreversible, and deliberately not a soft delete: the founder asked for the
+    knowledge to go. Extracted tasks are kept — they may be live commitments — so
+    their source citation is left dangling rather than silently removing work.
+    """
+    svc = MeetingService(db, current_user.company)
+    return svc.delete_meeting(svc.get_meeting_or_404(meeting_id))

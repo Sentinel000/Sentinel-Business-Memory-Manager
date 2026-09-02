@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     agent_model: str = "qwen3.6-plus"
     auto_approve_threshold_default: float = 1.0
 
+    # Knowledge memory (HydraDB). Empty disables knowledge tools rather than failing
+    # startup — the system runs without them, just with thinner chat answers.
+    hydra_db_api_key: str = ""
+    hydra_timeout_seconds: float = 30.0
+
     @property
     def sqlalchemy_url(self) -> str:
         """The connection string with a psycopg 3 driver prefix.

@@ -1,6 +1,6 @@
 """Transcript and meeting notes extraction agent runner."""
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
 from langchain_core.messages import HumanMessage
@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agentic_ai.factory import build_sentinel
+from app.knowledge.provisioning import ensure_knowledge_database
 from app.models.company import Company
 from app.models.task import Task
 from app.schemas.task import TaskSummary
@@ -18,9 +19,25 @@ def run_transcript_extraction(
     company: Company,
     transcript_text: str,
     source_ref: str | None = None,
+    meeting_title: str | None = None,
+    occurred_on: date | None = None,
 ) -> dict[str, Any]:
-    """Process a raw transcript or meeting recording, extracting structured action items."""
-    agent = build_sentinel(db, company, entry="transcript", source_ref=source_ref)
+    """Process a raw transcript or meeting recording, extracting structured action items.
+
+    A transcript produces tasks (Postgres) and knowledge (HydraDB). The knowledge
+    database is provisioned here rather than only at signup, so companies created
+    before knowledge memory existed pick it up on their next meeting.
+    """
+    ensure_knowledge_database(db, company)
+
+    agent = build_sentinel(
+        db,
+        company,
+        entry="transcript",
+        source_ref=source_ref,
+        meeting_title=meeting_title,
+        occurred_on=occurred_on,
+    )
 
     # Bound the result query to this run. Filtering on created_by_agent alone returns
     # tasks from every previous extraction, so a second meeting would report the

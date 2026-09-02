@@ -1,0 +1,22 @@
+# HydraDB Knowledge Layer — Tasks
+
+- [x] Add `hydradb-sdk>=2,<3` to `backend/requirements.txt` and `HYDRA_DB_API_KEY` to config settings
+- [ ] Document `HYDRA_DB_API_KEY` and `HYDRA_TIMEOUT_SECONDS` in `backend/.env.example` (blocked: file outside write permissions)
+- [x] Implement `KnowledgeStore` protocol and `HydraKnowledgeStore` client in `app/knowledge/store.py`
+- [x] Implement company database provisioning with match-enabled metadata schema declaration
+- [x] Implement `ingest_fact()` with date-prefixed statement text, metadata, and `fact_key` derivation
+- [x] Implement `recall()` returning summary-shaped results with source citations
+- [ ] Add startup assertion that the declared metadata schema matches expectations (deferred: filters verified working empirically)
+- [x] Implement `remember_fact` write tool in `app/agentic_ai/tools/knowledge_tools.py`
+- [x] Implement `search_memory` read tool in `app/agentic_ai/tools/knowledge_tools.py`
+- [x] Wire audit logging into both knowledge tools on success and failure paths
+- [x] Wire knowledge tools into `factory._tools_for` for transcript and founder chat entries
+- [x] Update `prompts/extractor.py` with `remember_fact` trigger and negative rules
+- [x] Update `prompts/chat.py` with `search_memory` trigger and negative rules
+- [x] Provision HydraDB database during company onboarding and persist `hydra_tenant_id`
+- [x] Implement graceful degradation when HydraDB is unreachable
+- [x] Verify latency of `client.query` against a realistic corpus and record the result
+- [x] Verify `fact_key` deduplication behaviour against the live API
+- [x] End-to-end verification: transcript ingestion through founder chat retrieval with citations
+- [x] Add `CHANGELOG.md` entry
+- [x] Accept `recorded_at` on the text-meeting path so back-dated transcripts stamp facts correctly

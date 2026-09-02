@@ -40,6 +40,9 @@ class EmployeeSummary(BaseModel):
     role_title: str | None
     slack_user_id: str | None
     manager_id: uuid.UUID | None
+    #: Whether this person has a dashboard login. Carried on the summary too, so the
+    #: roster can render credential state without a per-row detail fetch.
+    has_login: bool = False
 
     @property
     def is_slack_mapped(self) -> bool:
@@ -53,9 +56,6 @@ class EmployeeDetail(EmployeeSummary):
     manager: EmployeeSummary | None = None
     #: Direct reports, so the dashboard can render the org chart one level at a time.
     reports: list[EmployeeSummary] = []
-    #: Whether this person has a dashboard login. Employees usually do not — their
-    #: entire experience is Slack.
-    has_login: bool = False
 
 
 class EmployeeListResponse(BaseModel):

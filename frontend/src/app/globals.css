@@ -1,0 +1,146 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Light is the default and stays exactly as it was. Dark redefines the same
+ * tokens rather than introducing new ones, so every existing `bg-stone-canvas`
+ * / `text-ink-black` / `border-stone-border` in the app flips on its own.
+ */
+:root {
+  --color-stone-canvas: 250 250 249;
+  --color-surface: 255 255 255;
+  --color-stone-border: 232 230 229;
+  --color-stone-muted: 214 211 209;
+  --color-cyan-signal: 59 166 241;
+  --color-cyan-edge: 51 152 225;
+  --color-sky-wash: 193 225 247;
+  --color-ink-black: 12 10 9;
+  --color-warm-gray: 120 113 108;
+  --color-ash-gray: 168 162 158;
+  --color-soot: 28 25 23;
+  /* Brand tiles and selected pills are dark *chips*, not text. They must stay
+     dark in both themes — inverting them turns the logo into a white square —
+     but pure black would disappear against the dark canvas, so dark mode
+     lifts it to a raised charcoal instead. */
+  --color-inverse: 12 10 9;
+
+  --shadow-card: rgba(0, 0, 0, 0.05) 0px 4px 16px 0px;
+  --shadow-preview: rgba(17, 12, 46, 0.12) 0px 12px 45px 0px;
+  --shadow-subtle: rgba(0, 0, 0, 0.05) 0px 1px 2px 0px;
+
+  --highlight-fg: #3398e1;
+  --highlight-bg: #c1e1f7;
+}
+
+.dark {
+  --color-stone-canvas: 12 10 9;
+  --color-surface: 28 25 23;
+  --color-stone-border: 41 37 36;
+  --color-stone-muted: 68 64 60;
+  --color-sky-wash: 18 41 58;
+  /* Ink and canvas trade places; the greys keep their roles but lighten, so
+     text hierarchy survives the inversion instead of flattening. */
+  --color-ink-black: 245 245 244;
+  --color-warm-gray: 168 162 158;
+  --color-ash-gray: 120 113 108;
+  --color-soot: 231 229 228;
+  --color-inverse: 68 64 60;
+
+  /* A drop shadow does nothing on a dark ground — depth comes from the border
+     and the lighter surface instead. */
+  --shadow-card: rgba(0, 0, 0, 0.4) 0px 4px 16px 0px;
+  --shadow-preview: rgba(0, 0, 0, 0.5) 0px 12px 45px 0px;
+  --shadow-subtle: rgba(0, 0, 0, 0.3) 0px 1px 2px 0px;
+
+  --highlight-fg: #7cc4f7;
+  --highlight-bg: #12293a;
+
+  color-scheme: dark;
+}
+
+body {
+  background-color: rgb(var(--color-stone-canvas));
+  color: rgb(var(--color-ink-black));
+  font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  min-height: 100vh;
+}
+
+/*
+ * `bg-white` is used throughout for raised surfaces and would stay literally
+ * white. Remapped here rather than edited across forty components. `text-white`
+ * is deliberately untouched — it sits on the cyan accent, which does not invert.
+ */
+.dark .bg-white {
+  background-color: rgb(var(--color-surface));
+}
+.dark .bg-white\/70,
+.dark .bg-white\/60 {
+  background-color: rgb(var(--color-surface) / 0.7);
+}
+
+/*
+ * Status tints. The 50/100 steps are near-white and would glare on a dark
+ * ground; these keep the same hue at a weight that reads as a tint, and lift
+ * the paired text so the contrast survives.
+ */
+.dark .bg-emerald-50 { background-color: #052e1f; }
+.dark .bg-emerald-100 { background-color: #064e33; }
+.dark .bg-rose-50 { background-color: #3f1218; }
+.dark .bg-amber-50 { background-color: #3b2508; }
+.dark .bg-sky-50 { background-color: #0c2a3f; }
+.dark .bg-cyan-50 { background-color: #0b2c3a; }
+.dark .bg-stone-100 { background-color: #292524; }
+
+.dark .border-emerald-200 { border-color: #14532d; }
+.dark .border-rose-200 { border-color: #7f1d1d; }
+.dark .border-amber-200 { border-color: #78350f; }
+.dark .border-sky-200 { border-color: #0e4a6e; }
+.dark .border-cyan-200 { border-color: #0e4a5e; }
+
+.dark .text-emerald-700, .dark .text-emerald-800 { color: #6ee7b7; }
+.dark .text-rose-600, .dark .text-rose-700 { color: #fda4af; }
+.dark .text-amber-700 { color: #fcd34d; }
+.dark .text-sky-700 { color: #7dd3fc; }
+.dark .text-cyan-700 { color: #67e8f9; }
+.dark .text-stone-600 { color: #a8a29e; }
+
+.cyan-highlight {
+  color: var(--highlight-fg);
+  background-color: var(--highlight-bg);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.stone-card {
+  background-color: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-stone-border));
+  border-radius: 10px;
+  box-shadow: var(--shadow-card);
+}
+
+.btn-cyan {
+  background-color: rgb(var(--color-cyan-signal));
+  border: 1px solid rgb(var(--color-cyan-edge));
+  color: #ffffff;
+  border-radius: 9999px;
+  padding: 8px 16px;
+  font-weight: 500;
+  transition: all 0.15s ease-in-out;
+}
+.btn-cyan:hover {
+  background-color: rgb(var(--color-cyan-edge));
+}
+
+.btn-ghost {
+  background-color: transparent;
+  border: 1px solid rgb(var(--color-stone-border));
+  color: rgb(var(--color-ink-black));
+  border-radius: 9999px;
+  padding: 8px 16px;
+  font-weight: 400;
+  transition: all 0.15s ease-in-out;
+}
+.btn-ghost:hover {
+  background-color: rgb(var(--color-stone-canvas));
+}
