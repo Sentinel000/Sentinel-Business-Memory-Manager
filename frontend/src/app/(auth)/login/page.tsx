@@ -34,7 +34,7 @@ export default function LoginPage() {
     <main className="min-h-screen bg-stone-canvas flex items-center justify-center p-4">
       <div className="stone-card w-full max-w-md bg-white p-8 space-y-6 shadow-xl">
         <div className="text-center space-y-2">
-          <div className="w-10 h-10 bg-ink-black rounded-lg flex items-center justify-center text-white mx-auto">
+          <div className="w-10 h-10 bg-inverse rounded-lg flex items-center justify-center text-white mx-auto">
             <BrandMark className="w-5 h-5" />
           </div>
           <h1 className="text-2xl font-normal text-ink-black tracking-tight font-sans">

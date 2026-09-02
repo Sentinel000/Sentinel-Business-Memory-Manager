@@ -79,7 +79,7 @@ export const AudioRecorderStudio: React.FC = () => {
           <button
             onClick={() => setActiveTab('record')}
             className={`px-3 py-1 rounded-full font-medium transition ${
-              activeTab === 'record' ? 'bg-soot text-white shadow-subtle' : 'text-warm-gray hover:text-ink-black'
+              activeTab === 'record' ? 'bg-inverse text-white shadow-subtle' : 'text-warm-gray hover:text-ink-black'
             }`}
           >
             Live Record
@@ -87,7 +87,7 @@ export const AudioRecorderStudio: React.FC = () => {
           <button
             onClick={() => setActiveTab('upload')}
             className={`px-3 py-1 rounded-full font-medium transition ${
-              activeTab === 'upload' ? 'bg-soot text-white shadow-subtle' : 'text-warm-gray hover:text-ink-black'
+              activeTab === 'upload' ? 'bg-inverse text-white shadow-subtle' : 'text-warm-gray hover:text-ink-black'
             }`}
           >
             Upload File
@@ -95,7 +95,7 @@ export const AudioRecorderStudio: React.FC = () => {
           <button
             onClick={() => setActiveTab('text')}
             className={`px-3 py-1 rounded-full font-medium transition ${
-              activeTab === 'text' ? 'bg-soot text-white shadow-subtle' : 'text-warm-gray hover:text-ink-black'
+              activeTab === 'text' ? 'bg-inverse text-white shadow-subtle' : 'text-warm-gray hover:text-ink-black'
             }`}
           >
             Paste Text

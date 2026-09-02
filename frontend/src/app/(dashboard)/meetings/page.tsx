@@ -1,14 +1,16 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useMeetingsStore } from '@/stores/useMeetingsStore';
 import { AudioRecorderStudio } from '@/components/AudioRecorderStudio';
 import { Meeting } from '@/types';
-import { FileText, CheckCircle2, Loader2 } from 'lucide-react';
+import { DeleteMeetingDialog } from '@/components/DeleteMeetingDialog';
+import { FileText, CheckCircle2, Loader2, Trash2 } from 'lucide-react';
 
 export default function MeetingsPage() {
   const { meetings, fetchMeetings } = useMeetingsStore();
+  const [pendingDelete, setPendingDelete] = useState<Meeting | null>(null);
 
   useEffect(() => {
     fetchMeetings();
@@ -33,7 +35,7 @@ export default function MeetingsPage() {
                 <th className="p-3">Duration</th>
                 <th className="p-3">Format</th>
                 <th className="p-3">Status</th>
-                <th className="p-3 text-right">View Detail</th>
+                <th className="p-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-border text-ink-black font-medium">
@@ -60,13 +62,23 @@ export default function MeetingsPage() {
                       </span>
                     )}
                   </td>
-                  <td className="p-3 text-right">
-                    <Link
-                      href={`/meetings/${m.id}`}
-                      className="text-cyan-edge hover:underline font-semibold flex items-center gap-1 justify-end"
-                    >
-                      <FileText className="w-3.5 h-3.5" /> Transcript
-                    </Link>
+                  <td className="p-3">
+                    <div className="flex items-center gap-3 justify-end">
+                      <Link
+                        href={`/meetings/${m.id}`}
+                        className="text-cyan-edge hover:underline font-semibold flex items-center gap-1"
+                      >
+                        <FileText className="w-3.5 h-3.5" /> Transcript
+                      </Link>
+                      <button
+                        onClick={() => setPendingDelete(m)}
+                        title="Delete meeting and its facts"
+                        aria-label={`Delete ${m.title}`}
+                        className="p-1 text-ash-gray hover:text-rose-600 transition"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -74,6 +86,10 @@ export default function MeetingsPage() {
           </table>
         </div>
       </div>
+
+      {pendingDelete && (
+        <DeleteMeetingDialog meeting={pendingDelete} onClose={() => setPendingDelete(null)} />
+      )}
     </div>
   );
 }

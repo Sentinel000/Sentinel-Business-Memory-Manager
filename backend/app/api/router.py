@@ -9,6 +9,7 @@ from app.api.v1 import (
     chat,
     company,
     employees,
+    knowledge,
     me,
     meetings,
     onboarding,
@@ -25,6 +26,7 @@ api_router.include_router(company.router)
 api_router.include_router(onboarding.router)
 api_router.include_router(me.router)
 api_router.include_router(chat.router)
+api_router.include_router(knowledge.router)
 api_router.include_router(transcripts.router)
 api_router.include_router(meetings.router, prefix="/meetings")
 api_router.include_router(admin.router)

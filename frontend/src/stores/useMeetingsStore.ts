@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { Meeting } from '../types';
-import { api } from '../lib/api';
+import { Meeting, MeetingDeletePreview } from '../types';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface MeetingsState {
   meetings: Meeting[];
@@ -12,6 +12,8 @@ interface MeetingsState {
   fetchMeetingDetail: (id: string) => Promise<void>;
   uploadAudioMeeting: (file: File, title?: string) => Promise<Meeting>;
   createTextMeeting: (title: string, transcript: string) => Promise<Meeting>;
+  previewDelete: (id: string) => Promise<MeetingDeletePreview>;
+  deleteMeeting: (id: string) => Promise<number>;
 }
 
 export const useMeetingsStore = create<MeetingsState>((set, get) => ({
@@ -70,6 +72,23 @@ export const useMeetingsStore = create<MeetingsState>((set, get) => ({
     } catch (err) {
       set({ isProcessing: false, processingMessage: '' });
       throw err;
+    }
+  },
+  previewDelete: async (id) => {
+    const res = await api.get(`/meetings/${id}/delete-preview`);
+    return res.data as MeetingDeletePreview;
+  },
+
+  /** Permanent. Removes the meeting and every fact extracted from it. */
+  deleteMeeting: async (id) => {
+    try {
+      const res = await api.delete(`/meetings/${id}`);
+      set((state) => ({ meetings: state.meetings.filter((m) => m.id !== id) }));
+      return (res.data?.facts_deleted as number) ?? 0;
+    } catch (err) {
+      // Surfaced, never swallowed: a failed knowledge delete means the meeting is
+      // still there, and the founder needs to know it was not removed.
+      throw new Error(apiErrorMessage(err, 'Could not delete that meeting.'));
     }
   },
 }));

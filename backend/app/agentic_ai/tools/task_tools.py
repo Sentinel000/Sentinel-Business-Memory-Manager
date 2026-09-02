@@ -2,7 +2,7 @@
 
 import time
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Callable
 
 from langchain_core.tools import tool
@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.agentic_ai.audit import record_audit
 from app.database import SessionLocal
-from app.models.enums import TaskStatus
+from app.models.enums import ApprovalState, TaskStatus
 from app.models.task import Task
 from app.repositories.employee import EmployeeRepository
 from app.schemas.task import StatusUpdateCreate, TaskCreate, TaskDetail, TaskSummary, TaskUpdate
@@ -376,35 +376,61 @@ def create_extractor_task_tools(
                 owner_uuid = None
             deadline_dt = datetime.fromisoformat(deadline) if deadline else None
 
-            # Enforce threshold gate (Rule 3: threshold < 1.0 enables auto-approval; threshold >= 1.0 disables auto-approval)
-            initial_status = (
-                TaskStatus.APPROVED
-                if (threshold < 1.0 and confidence >= threshold)
-                else TaskStatus.PENDING_APPROVAL
-            )
+            # Rule 6 is not optional on the agent path. A founder may type a task
+            # with no citation; an extractor may not, because the quote is the only
+            # thing that makes the extraction checkable.
+            if not source_quote or not source_quote.strip():
+                return {
+                    "error": (
+                        "source_quote is required: pass the verbatim sentence from "
+                        "the transcript that this task came from."
+                    )
+                }
+
+            # Rule 3. A deterministic key means re-running extraction over the same
+            # meeting returns the existing task instead of duplicating it — which is
+            # what create_pending's contract promises and a fresh uuid4 broke.
+            idem = f"extract:{source_ref or 'adhoc'}:{title.strip().lower()}"
+
+            auto_approve = threshold < 1.0 and confidence >= threshold
 
             with SessionLocal() as session:
-                task = Task(
-                    company_id=company_id,
+                service = TaskService(session, company_id)
+                # Routed through the service rather than constructing a Task here.
+                # A bare Task row leaves the task pending with no `approvals` row,
+                # and the approval queue reads from `approvals` — so the task was
+                # invisible to the founder it was waiting on.
+                task, created = service.create_pending(
                     title=title,
+                    idempotency_key=idem,
+                    source_quote=source_quote,
+                    source_ref=source_ref,
                     description=description,
                     owner_employee_id=owner_uuid,
                     deadline=deadline_dt,
-                    source_quote=source_quote,
-                    source_ref=source_ref,
                     confidence=confidence,
-                    created_by_agent="extractor",
-                    status=initial_status,
-                    idempotency_key=uuid.uuid4().hex,
                 )
-                session.add(task)
+
+                if created and auto_approve:
+                    # The founder set a threshold; clearing it *is* their decision,
+                    # made in advance. Recorded as a real approval row with no
+                    # decider rather than a task that appears pre-blessed.
+                    approval = task.approval
+                    if approval is not None:
+                        approval.state = ApprovalState.APPROVED
+                        approval.decided_at = datetime.now(UTC)
+                    task.status = TaskStatus.APPROVED
+
+                # create_pending flushes but does not commit. Without this the block
+                # exits, the transaction rolls back, and the tool reports success on
+                # a task that does not exist.
                 session.commit()
                 session.refresh(task)
                 detail = _task_to_detail(task)
 
             duration = int((time.monotonic() - start_time) * 1000)
-            record_audit(None, company_id, "extractor", "create_extracted_task", {"title": title, "confidence": confidence, "status": initial_status.value}, detail, "success", duration_ms=duration)
-            return detail
+            record_audit(None, company_id, "extractor", "create_extracted_task", {"title": title, "confidence": confidence, "status": detail.get("status"), "duplicate": not created}, detail, "success", duration_ms=duration)
+            return {"kind": "task_created", "task": detail, "duplicate": not created}
         except Exception as e:
             duration = int((time.monotonic() - start_time) * 1000)
             record_audit(None, company_id, "extractor", "create_extracted_task", {"title": title}, None, "failure", str(e), duration)

@@ -110,7 +110,16 @@ export const ToolExecutionPanel: React.FC<{ executions: ToolExecution[] }> = ({ 
   if (!executions?.length) return null;
 
   const outcomes = executions.filter((e) => isOutcome(e) && rendererFor(e));
-  const evidence = executions.filter((e) => !outcomes.includes(e));
+  // Only the last read is shown. A turn that queries three times to narrow an
+  // answer produced one answer, and three near-identical rows above it read as
+  // noise rather than as evidence.
+  //
+  // Writes are deliberately not collapsed this way. A model that verifies with a
+  // read *after* creating something would otherwise hide the write behind the
+  // trailing query — the mutation is the part the founder most needs to see.
+  const reads = executions.filter((e) => !outcomes.includes(e));
+  const evidence = reads.slice(-1);
+  const hiddenReads = reads.length - evidence.length;
 
   return (
     <div className="space-y-2 mb-2">
@@ -122,7 +131,12 @@ export const ToolExecutionPanel: React.FC<{ executions: ToolExecution[] }> = ({ 
       {evidence.length > 0 && (
         <div className="space-y-1.5">
           <p className="text-[10px] uppercase tracking-wider text-warm-gray font-medium">
-            {evidence.length} source{evidence.length > 1 ? 's' : ''} consulted
+            Source consulted
+            {hiddenReads > 0 && (
+              <span className="normal-case tracking-normal text-ash-gray">
+                {' '}· {hiddenReads} earlier lookup{hiddenReads > 1 ? 's' : ''} hidden
+              </span>
+            )}
           </p>
           {evidence.map((execution, i) => (
             <ToolRow key={execution.id || `e${i}`} execution={execution} />

@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useChatStore } from '@/stores/useChatStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { ToolExecutionPanel } from '@/components/ToolExecutionPanel';
+import { MarkdownText } from '@/components/MarkdownText';
 import { BrandMark } from '@/components/BrandMark';
 import { ArrowUp, Plus, MessageSquare, Trash2, AlertCircle, PanelLeft, X } from 'lucide-react';
 
@@ -158,7 +159,7 @@ export default function ChatPage() {
           >
             <PanelLeft className="w-4 h-4" />
           </button>
-          <div className="w-7 h-7 bg-ink-black rounded-md flex items-center justify-center text-cyan-signal shrink-0">
+          <div className="w-7 h-7 bg-inverse rounded-md flex items-center justify-center text-cyan-signal shrink-0">
             <BrandMark className="w-4 h-4" />
           </div>
           <div className="min-w-0">
@@ -184,7 +185,7 @@ export default function ChatPage() {
 
           {isEmpty && (
             <div className="max-w-xl mx-auto text-center space-y-6 py-12 animate-in fade-in duration-500">
-              <div className="w-12 h-12 bg-ink-black rounded-xl flex items-center justify-center text-cyan-signal mx-auto">
+              <div className="w-12 h-12 bg-inverse rounded-xl flex items-center justify-center text-cyan-signal mx-auto">
                 <BrandMark className="w-6 h-6" />
               </div>
               <div className="space-y-1.5">
@@ -227,14 +228,14 @@ export default function ChatPage() {
                   key={m.id}
                   className="flex gap-3 animate-in fade-in slide-in-from-bottom-1 duration-300"
                 >
-                  <div className="w-7 h-7 bg-ink-black rounded-md flex items-center justify-center text-cyan-signal shrink-0 mt-0.5">
+                  <div className="w-7 h-7 bg-inverse rounded-md flex items-center justify-center text-cyan-signal shrink-0 mt-0.5">
                     <BrandMark className="w-4 h-4" />
                   </div>
                   <div className="min-w-0 flex-1 space-y-1">
                     <ToolExecutionPanel executions={m.tool_executions ?? []} />
-                    <p className="text-sm text-ink-black whitespace-pre-wrap break-words leading-relaxed">
-                      {m.content}
-                    </p>
+                    {/* The model writes Markdown; render it rather than showing
+                        the founder raw ** around every emphasised phrase. */}
+                    <MarkdownText content={m.content} />
                   </div>
                 </div>
               )
@@ -242,7 +243,7 @@ export default function ChatPage() {
 
             {isThinking && (
               <div className="flex gap-3">
-                <div className="w-7 h-7 bg-ink-black rounded-md flex items-center justify-center text-cyan-signal shrink-0">
+                <div className="w-7 h-7 bg-inverse rounded-md flex items-center justify-center text-cyan-signal shrink-0">
                   <BrandMark className="w-4 h-4" />
                 </div>
                 <div className="flex items-center gap-1 pt-2" aria-label="Thinking">

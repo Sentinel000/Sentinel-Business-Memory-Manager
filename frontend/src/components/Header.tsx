@@ -1,15 +1,21 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useUIStore } from '../stores/useUIStore';
 import { BrandLockup } from './BrandMark';
-import { MessageSquare, LogOut, Shield, Menu } from 'lucide-react';
+import { MessageSquare, LogOut, Shield, Menu, Sun, Moon } from 'lucide-react';
 
 export const Header: React.FC = () => {
   const { user, logout } = useAuthStore();
-  const { toggleNav } = useUIStore();
+  const { toggleNav, theme, toggleTheme, hydrateNav } = useUIStore();
+
+  // The pre-paint script already set the class; this syncs the store to it so
+  // the toggle's icon matches what is actually on screen.
+  useEffect(() => {
+    hydrateNav();
+  }, [hydrateNav]);
   const assistantName = user?.company?.persona_config?.assistant_name || 'Sentinel';
 
   return (
@@ -50,6 +56,14 @@ export const Header: React.FC = () => {
               {user?.role}
             </span>
           </div>
+          <button
+            onClick={toggleTheme}
+            className="p-1.5 text-warm-gray hover:text-ink-black hover:bg-stone-canvas rounded-full transition"
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
           <button
             onClick={logout}
             className="p-1.5 text-warm-gray hover:text-ink-black hover:bg-stone-canvas rounded-full transition"

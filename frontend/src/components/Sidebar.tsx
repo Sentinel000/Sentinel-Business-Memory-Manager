@@ -1,9 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CheckSquare, ListTodo, Mic, MessageSquare, Settings, UserCheck, X } from 'lucide-react';
+import {
+  CheckSquare, ListTodo, Mic, MessageSquare, Network, Settings, UserCheck, X,
+  PanelLeftClose, PanelLeftOpen,
+} from 'lucide-react';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useTasksStore } from '../stores/useTasksStore';
 import { useUIStore } from '../stores/useUIStore';
@@ -19,7 +22,16 @@ export const Sidebar: React.FC = () => {
   const pathname = usePathname();
   const { user } = useAuthStore();
   const { approvals } = useTasksStore();
-  const { isNavOpen, toggleNav } = useUIStore();
+  const { isNavOpen, toggleNav, isNavCollapsed, toggleNavCollapsed, hydrateNav } = useUIStore();
+
+  // After mount, not during render — the server cannot read localStorage.
+  useEffect(() => {
+    hydrateNav();
+  }, [hydrateNav]);
+
+  // The rail is a desktop affordance. On mobile the drawer is either open or
+  // gone, so a collapsed drawer would just be a narrower thing to dismiss.
+  const collapsed = isNavCollapsed;
 
   const navItems: NavItem[] =
     user?.role === 'employee'
@@ -34,6 +46,7 @@ export const Sidebar: React.FC = () => {
           { name: 'Tasks & Ledger', href: '/tasks', icon: ListTodo },
           { name: 'Chat with Sentinel', href: '/chat', icon: MessageSquare },
           { name: 'Meetings & Audio', href: '/meetings', icon: Mic },
+          { name: 'Knowledge Panel', href: '/knowledge', icon: Network },
           { name: 'Team & Persona', href: '/settings', icon: Settings },
         ];
 
@@ -51,7 +64,8 @@ export const Sidebar: React.FC = () => {
       <aside
         className={`
           bg-stone-canvas border-r border-stone-border flex flex-col
-          w-64 shrink-0
+          shrink-0 w-64 ${collapsed ? 'md:w-16' : 'md:w-64'}
+          transition-[width] duration-200 ease-out
           fixed md:sticky top-0 md:top-16 left-0 z-50 md:z-auto
           h-screen md:h-[calc(100vh-4rem)]
           transition-transform duration-200 ease-out
@@ -80,20 +94,37 @@ export const Sidebar: React.FC = () => {
                 key={item.href}
                 href={item.href}
                 onClick={() => toggleNav(false)}
-                className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition ${
+                // Collapsed, the label is gone — the native tooltip carries it.
+                title={collapsed ? item.name : undefined}
+                className={`relative flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition ${
+                  collapsed ? 'md:justify-center md:px-0' : ''
+                } ${
                   isActive
                     ? 'bg-white border border-stone-border text-ink-black shadow-subtle'
                     : 'text-warm-gray hover:text-ink-black hover:bg-stone-border/40'
                 }`}
               >
-                <div className="flex items-center gap-3 min-w-0">
+                <div className={`flex items-center gap-3 min-w-0 ${collapsed ? 'md:gap-0' : ''}`}>
                   <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-cyan-signal' : 'text-warm-gray'}`} />
-                  <span className="truncate">{item.name}</span>
+                  <span className={`truncate ${collapsed ? 'md:hidden' : ''}`}>{item.name}</span>
                 </div>
                 {item.badge !== undefined && (
-                  <span className="px-2 py-0.5 text-xs font-semibold bg-cyan-signal text-white rounded-full shrink-0">
-                    {item.badge}
-                  </span>
+                  <>
+                    <span
+                      className={`px-2 py-0.5 text-xs font-semibold bg-cyan-signal text-white rounded-full shrink-0 ${
+                        collapsed ? 'md:hidden' : ''
+                      }`}
+                    >
+                      {item.badge}
+                    </span>
+                    {/* A pending queue must stay visible on the rail — it is the
+                        one thing in this nav that is waiting on the founder. */}
+                    {collapsed && (
+                      <span className="hidden md:flex absolute top-1 right-1 min-w-[16px] h-4 px-1 items-center justify-center text-[10px] font-semibold bg-cyan-signal text-white rounded-full">
+                        {item.badge}
+                      </span>
+                    )}
+                  </>
                 )}
               </Link>
             );
@@ -101,7 +132,7 @@ export const Sidebar: React.FC = () => {
         </nav>
 
         {user?.role !== 'employee' && (
-          <div className="p-4 pt-0 shrink-0">
+          <div className={`p-4 pt-0 shrink-0 ${collapsed ? 'md:hidden' : ''}`}>
             <div className="stone-card p-3.5 text-xs space-y-2 bg-white">
               <div className="flex items-center justify-between text-warm-gray">
                 <span>Daily Wakeup Cron</span>
@@ -111,6 +142,27 @@ export const Sidebar: React.FC = () => {
             </div>
           </div>
         )}
+        {/* Desktop-only rail toggle. Mobile closes the drawer instead. */}
+        <div className="hidden md:block p-3 pt-0 shrink-0">
+          <button
+            onClick={() => toggleNavCollapsed()}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-expanded={!collapsed}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-warm-gray hover:text-ink-black hover:bg-stone-border/40 transition ${
+              collapsed ? 'justify-center px-0' : ''
+            }`}
+          >
+            {collapsed ? (
+              <PanelLeftOpen className="w-4 h-4 shrink-0" />
+            ) : (
+              <>
+                <PanelLeftClose className="w-4 h-4 shrink-0" />
+                <span>Collapse</span>
+              </>
+            )}
+          </button>
+        </div>
       </aside>
     </>
   );

@@ -79,7 +79,7 @@ export default function TasksPage() {
               key={f}
               onClick={() => setStatusFilter(f)}
               className={`px-3 py-1 rounded-full font-medium capitalize transition ${
-                statusFilter === f ? 'bg-soot text-white shadow-subtle' : 'text-warm-gray hover:text-ink-black'
+                statusFilter === f ? 'bg-inverse text-white shadow-subtle' : 'text-warm-gray hover:text-ink-black'
               }`}
             >
               {f === 'all' ? 'All Tasks' : f.replace('_', ' ')}

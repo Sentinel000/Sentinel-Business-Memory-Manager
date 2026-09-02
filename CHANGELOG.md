@@ -1,5 +1,63 @@
 # Changelog
 
+## [0.13.0] - 2026-09-01
+
+### Added
+- **Knowledge Panel — the company knowledge graph, visualised.** New founder-only tab (`/knowledge`) rendering the entities HydraDB extracted from meetings and the relations between them, as a `d3-force` layout. Closes the "see the knowledge graph grow over time" user story, which had no implementation.
+  - `GET /api/v1/knowledge/graph` (`app/api/v1/knowledge.py`). Founder-scoped, matching `create_knowledge_read_tools` — employees live in Slack and get a 403.
+  - `HydraKnowledgeStore.graph_relations()` and `corpus_size()`, both added to the `KnowledgeStore` Protocol. The route speaks only in our own dataclasses; the vendor client stays behind the seam, as the store's docstring requires.
+  - `d3-force` runs the simulation only — it mutates `{x,y,vx,vy}` and draws nothing. The SVG, pan/zoom, and node drag are hand-rolled against pointer events rather than pulling in `d3-drag` and `d3-zoom`. Nodes are cloned before the simulation touches them, since the originals belong to the Zustand store.
+
+### Notes — shaped by what the live graph actually contains
+- **Parallel evidence is collapsed into one edge.** The API returns a triplet group per evidencing chunk, so the same pair arrives repeatedly (one pair appeared twice). Drawing each separately renders a denser graph than the data supports. Deduplicated by `(source, target, predicate)`, with every evidence entry kept and shown in the detail panel — Rule 6 applied to the graph: an edge you can check, not one to take on trust.
+- **`confidence` is deliberately not encoded.** Every edge on live data scored exactly `0.80`. It is a placeholder, and mapping a constant to stroke weight or opacity would draw a signal that does not exist.
+- **Provenance edges are flagged and hidden by default.** `build_statement_text` appends "(speaker, meeting title)" so a chunk read cold carries its attribution — and the graph builder reads that parenthetical as authorship. On live data these `authored` edges were 4 of 10, turning the graph into an org chart of who spoke rather than a map of what the company knows. Flagged server-side (`is_provenance`), hidden behind a "Show who said it" toggle. Hiding them also drops entities they were the only reason to draw, so no orphan nodes are left behind.
+- **`is_truncated` is surfaced in the UI.** A partial force layout is visually indistinguishable from a complete one, which is the worst failure this panel could have.
+- **Entity types arrive UPPERCASE** (`PERSON`, `ORGANIZATION`, `CONCEPT`, `DOCUMENT`) despite the SDK documenting lowercase. Normalised once in the store; otherwise every node silently falls to the default colour.
+- **`canonical_predicate` is not canonical.** `set price for` and `has pricing` are the same relation under two labels, and `raw_predicate` never differed from `canonical_predicate` on any edge — normalisation is effectively a pass-through. Predicates are treated as display-only; there is no predicate filter.
+- **Unavailable and empty are different answers.** Unconfigured or unreachable memory returns `available: false` with a note; an empty graph returns `available: true` with `fact_count`, which distinguishes "nothing recorded" from "recorded, graph still building" (~4 minutes). Neither is an error, and neither 500s.
+
+### Added — tooling
+- `scripts/probe_knowledge.py`: read-only inspection of a live HydraDB account — infra status, row counts, **metadata schema drift**, per-source indexing status, and the graph both database-wide and scoped to one fact.
+
+### Known issues — surfaced, not fixed
+- **`sentinel_smoke_test` has a broken metadata schema in the live account**: it declares only `subject`, missing `fact_type`, `speaker`, and `source_ref`. An undeclared match field does not error — the filter is silently ignored and returns unscoped results that look scoped. The two real company databases are correct. The "startup assertion that the declared metadata schema matches expectations" task remains open, and this is evidence it should not stay deferred.
+- `indexing_state()` is still never called on the read path, so a founder querying just after upload is told "nothing recorded yet" when the truth is "not indexed yet". The Knowledge Panel works around this with `fact_count`; `search_memory` does not.
+- `relations(id=...)` takes a `fact_<sha>` id, not a meeting id, so a per-meeting graph view needs fan-out and merge. Not attempted; the panel is database-wide.
+
+## [0.12.0] - 2026-09-01
+
+### Fixed
+- **Extracted tasks never reached the approval queue.** `create_extracted_task` constructed a `Task` row directly and committed it. The approval queue reads from the `approvals` table, so a task sitting at `pending_approval` with no approval row was invisible to the founder it was waiting on — the extract → **approve** → delegate loop was broken at step two. Now routed through `TaskService.create_pending()`, which writes both rows. The auto-approve path above the confidence threshold promotes the approval row to `approved` with a null decider, representing a decision the founder made in advance by setting the threshold, rather than a task that appears pre-blessed.
+  - `create_pending()` flushes but does not commit; the tool now commits explicitly. Without it the session block exits, the transaction rolls back, and the tool reports success on a task that does not exist.
+  - `source_quote` is now **required** rather than silently optional. Rule 6 applies to anything the AI produces; the tool rejects the call with instructions, the way it already rejects a name in `owner_employee_id`.
+  - Idempotency key is now derived from `source_ref` + title instead of a fresh `uuid4`, so re-running extraction over a meeting returns the existing task instead of duplicating it — which is what `create_pending`'s contract already promised (Rule 3).
+- **Markdown in chat replies rendered as literal asterisks.** `MarkdownText` renders `**bold**`, `*italic*`, `` `code` ``, bullets, and numbered lists as React elements — never `dangerouslySetInnerHTML`, since the input is model output. Unrecognised syntax falls through as text.
+
+### Changed
+- **Chat shows one source per turn, not all of them.** A turn that queries three times to narrow an answer produced one answer; three near-identical rows read as noise. Writes are deliberately exempt from the collapse: a model that verifies with a read *after* creating something would otherwise hide the mutation behind the trailing query. Every write renders; only the last read does, with a count of what was hidden.
+
+### Added
+- **Meeting deletion, cascading to HydraDB.** `DELETE /meetings/{id}` removes the meeting and every fact extracted from it. `GET /meetings/{id}/delete-preview` reports the counts first, so the confirmation dialog asks about the real consequence rather than "delete this meeting?".
+  - `HydraKnowledgeStore.source_fact_ids()` (paginated, read-only) and `forget_source()`.
+  - **`forget_source` raises instead of degrading**, unlike every other method in the class. Recall is enrichment over Postgres truth so a failed read can return nothing safely; a failed delete cannot, because the caller is about to remove the Postgres row. Facts go first, meeting second — an aborted delete leaves both.
+  - Extracted **tasks are not deleted**. They may be live commitments assigned to real people; their `source_ref` is left dangling, which is visible, rather than removing work as a side effect. The dialog says so.
+
+### Notes
+- **A meeting's facts are addressed by title, not id** (`source_ref = f"Meeting: {title}"`), so two meetings sharing a title share one knowledge address and deleting either would wipe both. Delete refuses with a 409 when the title is not unique, and the dialog explains why. The underlying title-based linkage is unchanged — `get_meeting_tasks` matches the same way — and is worth revisiting.
+- `fact_count` is `null`, not `0`, when the knowledge store cannot be reached, so the founder never confirms a permanent delete against a count that was really a failed lookup.
+- Meetings already had their own dashboard tab, list page, and detail page; only deletion was missing.
+
+### Notes — verified against the live HydraDB API, not the documentation
+- **A refused delete returns HTTP 200 with a success envelope.** The refusal is in the payload: `deleted_count: 0`, `success: false`, and a per-id `error`. The first implementation of `forget_source` treated "no exception raised" as success and reported 3 facts deleted when all 3 were still present — the precise silent failure the method was written to prevent. It now reads `results[].deleted` and raises when any id failed.
+- **A fact still indexing cannot be deleted**: `"Source is still processing; retry deletion after ingestion completes"`. Measured at ~225s (~4 minutes) from ingest to `completed` status, passing through a `graph_creation` stage. So a meeting deleted shortly after processing will refuse — `delete_meeting` translates this to a 409 telling the founder to retry, and leaves the meeting row intact rather than stranding facts with no handle to find them by.
+- Newly ingested facts are briefly invisible to `context.list` (seconds) before appearing with status `graph_creation`.
+- The metadata filter on `source_ref` is exact and complete — filtered counts matched an unfiltered listing of the whole database (1 + 3 = 4).
+
+### Known issues — surfaced, not fixed
+- **Four of the six founder chat task tools cannot succeed.** `TaskService` has no `patch`, `approve_pending`, or `reject_pending` (it has `update`), and `create_manual` is called as `create_manual(payload, user_id=...)` against a signature of `(payload, *, created_by: User, ...)` that returns a tuple. All four raise, are swallowed by the tool's `except`, and return `{"error": ...}` — while rendering a green ✓, because these tools catch their own exceptions and LangChain still reports `status == "success"`. The `task_created`/`task_updated`/`task_approved`/`task_rejected` renderers are therefore unreachable from chat today.
+- Founder chat writes at all, and `create_manual` produces an **approved** task, while Architecture Rule 1 says every AI-produced task lands in `pending_approval` — and the chat footer promises the founder it "never writes without approval."
+
 ## [0.11.0] - 2026-09-01
 
 ### Added

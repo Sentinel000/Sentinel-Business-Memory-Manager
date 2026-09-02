@@ -138,3 +138,55 @@ export interface Conversation {
   created_at: string;
   updated_at: string;
 }
+
+/** What deleting a meeting would remove. `fact_count` is null when unknown. */
+export interface MeetingDeletePreview {
+  meeting_id: string;
+  title: string;
+  fact_count: number | null;
+  task_count: number;
+  title_is_ambiguous: boolean;
+}
+
+/** Why the graph believes a relation exists — the citation behind an edge. */
+export interface GraphEvidence {
+  predicate: string;
+  context: string | null;
+  timestamp: string | null;
+  chunk_id: string | null;
+}
+
+export interface GraphNode {
+  id: string;
+  name: string;
+  /** Lower-cased server-side: person, organization, concept, document, knowledge. */
+  type: string;
+  provider: string | null;
+}
+
+export interface GraphEdge {
+  id: string;
+  source: string;
+  target: string;
+  predicate: string;
+  evidence: GraphEvidence[];
+  /**
+   * An "authored"-style relation describing how a fact reached us rather than what
+   * the company knows. Hidden by default — see the store's `showProvenance`.
+   */
+  is_provenance: boolean;
+}
+
+/**
+ * `available: false` means memory is unconfigured or unreachable — distinct from an
+ * empty graph, which is a real answer. `fact_count` disambiguates an empty graph:
+ * rows with no edges means indexing is still building.
+ */
+export interface KnowledgeGraph {
+  available: boolean;
+  note: string | null;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  truncated: boolean;
+  fact_count: number | null;
+}

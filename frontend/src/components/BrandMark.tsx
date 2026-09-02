@@ -28,7 +28,7 @@ export const BrandLockup: React.FC<{ size?: 'sm' | 'lg' }> = ({ size = 'sm' }) =
   const tile = size === 'lg' ? 'w-10 h-10 rounded-lg' : 'w-7 h-7 rounded-md';
   const icon = size === 'lg' ? 'w-5 h-5' : 'w-4 h-4';
   return (
-    <div className={`${tile} bg-ink-black flex items-center justify-center text-cyan-signal shrink-0`}>
+    <div className={`${tile} bg-inverse flex items-center justify-center text-cyan-signal shrink-0`}>
       <BrandMark className={icon} />
     </div>
   );
