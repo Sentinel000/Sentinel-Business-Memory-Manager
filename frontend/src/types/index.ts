@@ -190,3 +190,65 @@ export interface KnowledgeGraph {
   truncated: boolean;
   fact_count: number | null;
 }
+
+/** One row in a briefing section. Loosely typed because sections differ. */
+export interface ReportItem {
+  task_id: string;
+  title: string;
+  owner: string | null;
+  status: string;
+  deadline: string | null;
+  overdue_days: number | null;
+  chase_count: number;
+  source_quote: string | null;
+  source_ref: string | null;
+  /** needs_decision only — why this is waiting on the founder. */
+  reason?: string;
+  /** moved only. */
+  moved_to?: string;
+  note?: string | null;
+  /** quiet only. */
+  days_silent?: number | null;
+  chases?: string;
+}
+
+export interface ReportSection {
+  key: 'needs_decision' | 'slipping' | 'moved' | 'quiet';
+  title: string;
+  /** Shown when items is empty. "Nothing slipped" is a real answer, not a blank. */
+  empty: string;
+  items: ReportItem[];
+  total: number;
+  /** Matches beyond the display cap. */
+  hidden: number;
+}
+
+export interface Report {
+  id: string;
+  /** The day described. */
+  report_date: string;
+  /** When it was last rebuilt — distinct from report_date. */
+  generated_at: string;
+  counts: Record<string, number>;
+  sections: ReportSection[];
+}
+
+export interface ReportSummary {
+  id: string;
+  report_date: string;
+  generated_at: string;
+  counts: Record<string, number>;
+}
+
+/** A nudge Sentinel sent, shown to the employee it was aimed at. */
+export interface Reminder {
+  id: string;
+  task_id: string;
+  task_title: string;
+  note: string | null;
+  deadline: string | null;
+  created_at: string;
+  /** Whether the owner has replied since. Answered ones stay as history but
+   *  stop counting toward the badge. */
+  answered: boolean;
+}

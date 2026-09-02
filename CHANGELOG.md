@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.14.0] - 2026-09-02
+
+### Changed — Slack is no longer the delivery channel
+- **Chasing moved into the product.** Reminders land on the employee's own `/me` page instead of a Slack DM. The consequence is stated rather than hidden: there is no push, so an unread reminder is indistinguishable from an employee who has not logged in. Sentinel no longer promises to make someone respond — it guarantees the founder knows who has not.
+- **The cron agent is gone.** `agents/followup.py`, the `cron` factory entry, and its Slack tools are removed, so nothing in the codebase can send a DM. `POST /admin/run-followup` becomes `POST /admin/run-chase`.
+- **`escalated` is repurposed, not replaced.** It meant "the manager was DM'd"; it now means "handed back to the founder", who is the only escalation path left.
+
+### Added — the chase ladder
+- `companies.max_chases` (default 2) and `tasks.chase_count`. The cadence reuses the existing `escalation_after_days` rather than adding a second interval that would have to be kept in agreement with it.
+- **Silence is the clock; a deadline only brings it forward.** One SQL clause covers dated and undated tasks — undated commitments are precisely the ones that rot unnoticed, and a trigger that required a deadline would never chase them.
+- **Blocked is never chased.** The owner already answered, and the answer was "I am stuck". Nudging them is what trains people to ignore the tool, so a blocker goes straight to the founder. Unowned tasks are never chased either — there is nobody to chase.
+- **The ladder terminates.** Two reminders, then chasing stops and the task is handed back. The cap exists to protect the briefing: unbounded chasing means unbounded stale tasks, which is how a daily report stops being read.
+- **Only a founder action grants a fresh budget** — unblocking, reassigning, or moving the deadline, and only when the value actually changed, so fixing a typo does not restart the ladder. An employee response clears `escalated` but never mints new chases, so "mark blocked to buy time" cannot game the counter.
+
+### Added — founder briefings
+- **`/briefings` tab and `GET`/`POST`/`DELETE /api/v1/reports`.** Replaces the cron digest, which was generated daily and *discarded* — `daily_wake_up_job` called `run_cron_followup()` without assigning its return value, so the "one morning digest" user story had no implementation despite the agent doing the work every morning.
+- **No model.** Every figure is computed in SQL. "What is overdue" is a query, not a retrieval (Rule 2), and a briefing that miscounts is worse than no briefing.
+- **Four sections, five items each**, ordered by what a founder can act on: needs-decision, slipping, moved, quiet. The cap is the design — a briefing that fits one screen gets read and one that does not, does not.
+- **Movement is the point.** The `moved` section is measured against the *previous* briefing, so nothing is counted twice and nothing falls through the gap between runs. Agent-written reminders are excluded: our own nudges are not news.
+- **Every item cites its source quote** (Rule 6), so a claim can be checked rather than trusted.
+- **Empty states are explicit text, never a blank box.** "Nothing slipped" is a real, reassuring answer; an empty section reads as a broken feature.
+- **On demand, never scheduled.** Generation is idempotent on `(company_id, report_date)` — regenerating updates the day's row, so clicking twice gives one briefing rather than two versions of the same morning with no way to tell which is current. `generated_at` is kept separate from `report_date` so the UI can say "Today · built 2:14pm".
+
+### Fixed
+- **The scheduler shared one `SessionLocal()` across every tenant.** A failed transaction in the first company left the session unusable and silently disabled every tenant after it — noise when the job only sent messages, a correctness bug now that it writes to `tasks`. Session per company.
+- **Reports are deliberately not wired into the scheduler.** That separation is the whole reason the regenerate button is safe: a button that also re-chased the team could not be pressed twice.
+
+### Notes
+- **Caught during verification:** the chase trigger's overdue branch originally bypassed the cadence, so an overdue task matched on *every* run and burned its entire budget in one afternoon — the deadline stays passed, so the clause never stopped being true. The rate limit now applies to both paths.
+- `TaskStatus.OVERDUE` is confirmed dead — nothing writes it, and overdue is derived from `deadline < now()` so it cannot go stale. Left dormant rather than removed.
+- `scripts/verify_chase.py` (25 checks), `scripts/verify_report.py` (24), `scripts/verify_reports_api.py` (22) — all passing against the live database.
+
+### Known issues — surfaced, not fixed
+- `BackgroundScheduler` is in-process, so each uvicorn worker starts its own and the job fires once per worker. Safe at one worker; needs a lock or external trigger before scaling out.
+- The daily job still runs for every company, including ~12 test rows (`Test Acme Co`, `Acme QA`, `verify-a-*`) left by earlier scripts. Real work for tenants that were never meant to exist.
+- `backend/.env.example` documents `HYDRA_API_KEY`, but config reads `HYDRA_DB_API_KEY`. Anyone following the example silently gets knowledge memory disabled.
+- `slack_tools.py` and `prompts/cron.py` remain on disk, exported but unreachable. Kept in case Slack returns; dead exports invite accidental re-wiring.
+
 ## [0.13.0] - 2026-09-01
 
 ### Added

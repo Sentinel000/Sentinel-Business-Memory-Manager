@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  CheckSquare, ListTodo, Mic, MessageSquare, Network, Settings, UserCheck, X,
+  CheckSquare, FileText, ListTodo, Mic, MessageSquare, Network, Settings, UserCheck, X,
   PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react';
 import { useAuthStore } from '../stores/useAuthStore';
@@ -44,6 +44,7 @@ export const Sidebar: React.FC = () => {
             badge: approvals.length > 0 ? approvals.length : undefined,
           },
           { name: 'Tasks & Ledger', href: '/tasks', icon: ListTodo },
+          { name: 'Briefings', href: '/briefings', icon: FileText },
           { name: 'Chat with Sentinel', href: '/chat', icon: MessageSquare },
           { name: 'Meetings & Audio', href: '/meetings', icon: Mic },
           { name: 'Knowledge Panel', href: '/knowledge', icon: Network },

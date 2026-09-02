@@ -5,6 +5,7 @@ import { useTasksStore } from '@/stores/useTasksStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { Task } from '@/types';
 import { CheckCircle2, PlayCircle, AlertCircle, Clock } from 'lucide-react';
+import { ReminderBanner } from '@/components/ReminderBanner';
 
 export default function EmployeePortalPage() {
   const { myTasks, fetchMyTasks, updateMyTaskStatus } = useTasksStore();
@@ -25,6 +26,8 @@ export default function EmployeePortalPage() {
           team lead. Tap a status to report progress.
         </p>
       </div>
+
+      <ReminderBanner />
 
         <div className="space-y-4">
           {myTasks.length === 0 ? (
