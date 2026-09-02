@@ -9,20 +9,17 @@ from sqlalchemy.orm import Session
 from app.agentic_ai.checkpointer import get_checkpointer
 from app.agentic_ai.config import get_llm
 from app.agentic_ai.prompts import (
-    render_cron_prompt,
     render_employee_chat_prompt,
     render_extractor_prompt,
     render_founder_chat_prompt,
 )
 from app.agentic_ai.tools import (
-    create_cron_task_tools,
     create_knowledge_read_tools,
     create_knowledge_write_tools,
     create_employee_task_tools,
     create_employee_tools,
     create_extractor_task_tools,
     create_founder_task_tools,
-    create_slack_tools,
 )
 from app.models.company import Company
 from app.models.enums import UserRole
@@ -33,7 +30,7 @@ def _tools_for(
     db: Session | None,
     company: Company,
     actor: User | None,
-    entry: Literal["chat", "cron", "transcript"],
+    entry: Literal["chat", "transcript"],
     source_ref: str | None = None,
     meeting_title: str | None = None,
     occurred_on: date | None = None,
@@ -55,13 +52,6 @@ def _tools_for(
             return create_employee_task_tools(company.id, actor.id, actor.employee_id)
         else:
             raise ValueError(f"Unknown user role: {actor.role}")
-
-    elif entry == "cron":
-        return (
-            create_cron_task_tools(company.id)
-            + create_slack_tools(company.id)
-            + create_employee_tools(company.id)
-        )
 
     elif entry == "transcript":
         raw_threshold = getattr(company, "auto_approve_threshold", None)
@@ -86,7 +76,7 @@ def _tools_for(
 def _prompt_for(
     company: Company,
     actor: User | None,
-    entry: Literal["chat", "cron", "transcript"],
+    entry: Literal["chat", "transcript"],
 ) -> str:
     """Render the modular on-demand system prompt."""
     if entry == "chat":
@@ -95,9 +85,6 @@ def _prompt_for(
         elif actor:
             return render_founder_chat_prompt(company, actor)
         return render_founder_chat_prompt(company, actor)  # type: ignore
-
-    elif entry == "cron":
-        return render_cron_prompt(company)
 
     elif entry == "transcript":
         return render_extractor_prompt(company)
@@ -110,7 +97,7 @@ def build_sentinel(
     company: Company,
     *,
     actor: User | None = None,
-    entry: Literal["chat", "cron", "transcript"] = "chat",
+    entry: Literal["chat", "transcript"] = "chat",
     source_ref: str | None = None,
     meeting_title: str | None = None,
     occurred_on: date | None = None,
