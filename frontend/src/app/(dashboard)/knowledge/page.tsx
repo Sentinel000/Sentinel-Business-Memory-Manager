@@ -7,7 +7,7 @@ import {
   ENTITY_TYPES,
   KnowledgeGraphCanvas,
   colorForType,
-} from '@/components/KnowledgeGraphCanvas';
+} from '@/components/knowledge';
 
 export default function KnowledgePanelPage() {
   const {

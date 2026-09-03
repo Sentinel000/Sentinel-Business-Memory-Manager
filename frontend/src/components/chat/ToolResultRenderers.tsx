@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ToolExecution, ToolTaskSummary, TaskStatus } from '../types';
+import { ToolExecution, ToolTaskSummary, TaskStatus } from '@/types';
 import { CheckCircle2, Circle, CircleDashed, AlertTriangle, XCircle, Clock } from 'lucide-react';
 
 /**

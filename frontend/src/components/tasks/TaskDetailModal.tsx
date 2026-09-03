@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Task, TaskStatus } from '../types';
+import { Task, TaskStatus } from '@/types';
 import { X, Clock, User, Quote, ShieldCheck } from 'lucide-react';
 
 interface Props {

@@ -3,9 +3,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useChatStore } from '@/stores/useChatStore';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { ToolExecutionPanel } from '@/components/ToolExecutionPanel';
-import { MarkdownText } from '@/components/MarkdownText';
-import { BrandMark } from '@/components/BrandMark';
+import { ToolExecutionPanel } from '@/components/chat';
+import { MarkdownText, BrandMark, SentinelBot } from '@/components/ui';
 import { ArrowUp, Plus, MessageSquare, Trash2, AlertCircle, PanelLeft, X } from 'lucide-react';
 
 const SUGGESTIONS = [
@@ -159,8 +158,8 @@ export default function ChatPage() {
           >
             <PanelLeft className="w-4 h-4" />
           </button>
-          <div className="w-7 h-7 bg-inverse rounded-md flex items-center justify-center text-cyan-signal shrink-0">
-            <BrandMark className="w-4 h-4" />
+          <div className="shrink-0 flex items-center justify-center">
+            <SentinelBot size={30} state="idle" />
           </div>
           <div className="min-w-0">
             <h1 className="text-sm font-medium text-ink-black tracking-tight truncate">
@@ -185,8 +184,8 @@ export default function ChatPage() {
 
           {isEmpty && (
             <div className="max-w-xl mx-auto text-center space-y-6 py-12 animate-in fade-in duration-500">
-              <div className="w-12 h-12 bg-inverse rounded-xl flex items-center justify-center text-cyan-signal mx-auto">
-                <BrandMark className="w-6 h-6" />
+              <div className="mx-auto flex items-center justify-center pb-1">
+                <SentinelBot size={80} state="idle" showGlow={true} />
               </div>
               <div className="space-y-1.5">
                 <h2 className="text-2xl font-normal text-ink-black tracking-tight">
@@ -228,8 +227,8 @@ export default function ChatPage() {
                   key={m.id}
                   className="flex gap-3 animate-in fade-in slide-in-from-bottom-1 duration-300"
                 >
-                  <div className="w-7 h-7 bg-inverse rounded-md flex items-center justify-center text-cyan-signal shrink-0 mt-0.5">
-                    <BrandMark className="w-4 h-4" />
+                  <div className="shrink-0 mt-0.5 flex items-center justify-center">
+                    <SentinelBot size={28} state="idle" />
                   </div>
                   <div className="min-w-0 flex-1 space-y-1">
                     <ToolExecutionPanel executions={m.tool_executions ?? []} />
@@ -243,8 +242,8 @@ export default function ChatPage() {
 
             {isThinking && (
               <div className="flex gap-3">
-                <div className="w-7 h-7 bg-inverse rounded-md flex items-center justify-center text-cyan-signal shrink-0">
-                  <BrandMark className="w-4 h-4" />
+                <div className="shrink-0 flex items-center justify-center">
+                  <SentinelBot size={28} state="thinking" />
                 </div>
                 <div className="flex items-center gap-1 pt-2" aria-label="Thinking">
                   {[0, 150, 300].map((delay) => (

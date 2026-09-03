@@ -120,3 +120,23 @@ class TaskListResponse(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class ReminderRead(BaseModel):
+    """A nudge Sentinel sent, shown to the employee it was aimed at.
+
+    Carries the task it is about, because a reminder with no subject is just an
+    interruption.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    task_id: uuid.UUID
+    task_title: str
+    note: str | None
+    deadline: datetime | None
+    created_at: datetime
+    #: Whether the owner has said anything since this was sent. An answered
+    #: reminder stays visible as history but stops counting toward the badge.
+    answered: bool = False

@@ -4,6 +4,10 @@ import React from 'react';
 export const metadata = {
   title: 'Sentinel — AI Business Companion',
   description: 'Operational memory and follow-up engine for founders.',
+  icons: {
+    icon: '/sentinel-logo.png',
+    apple: '/sentinel-logo.png',
+  },
 };
 
 /*

@@ -36,6 +36,12 @@ class Company(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Integer, nullable=False, server_default="3"
     )
 
+    #: How many reminders a task gets before it stops being chased and is handed
+    #: back to the founder. Deliberately low: with no push channel, a third nudge to
+    #: someone who ignored two is delay, not persuasion — and every extra chase
+    #: postpones the moment the founder learns the commitment is dead.
+    max_chases: Mapped[int] = mapped_column(Integer, nullable=False, server_default="2")
+
     #: Minimum confidence score required to auto-approve an extracted task.
     #: Default is 1.0 (nothing auto-approves until tuned down).
     auto_approve_threshold: Mapped[float] = mapped_column(

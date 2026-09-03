@@ -13,6 +13,7 @@ from app.models.conversation import Conversation
 from app.models.employee import Employee
 from app.models.enums import ApprovalState, ReportedVia, TaskStatus, UserRole
 from app.models.meeting import Meeting, MeetingStatus, TranscriptSegment
+from app.models.report import Report
 from app.models.status_update import StatusUpdate
 from app.models.task import Task
 from app.models.user import User
@@ -27,6 +28,7 @@ __all__ = [
     "Employee",
     "Meeting",
     "MeetingStatus",
+    "Report",
     "ReportedVia",
     "StatusUpdate",
     "Task",

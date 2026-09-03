@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ApprovalItem, Employee } from '../types';
+import { ApprovalItem, Employee } from '@/types';
 import { Check, X, Edit2, Quote, Clock, Wand2 } from 'lucide-react';
 
 interface Props {

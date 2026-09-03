@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { apiErrorMessage } from '@/lib/api';
 import { ArrowRight } from 'lucide-react';
-import { BrandMark } from '@/components/BrandMark';
+import { BrandMark } from '@/components/ui';
 
 export default function LoginPage() {
   const router = useRouter();

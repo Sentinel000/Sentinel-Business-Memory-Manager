@@ -4,12 +4,12 @@ import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  CheckSquare, ListTodo, Mic, MessageSquare, Network, Settings, UserCheck, X,
+  CheckSquare, FileText, ListTodo, Mic, MessageSquare, Network, Settings, UserCheck, X,
   PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react';
-import { useAuthStore } from '../stores/useAuthStore';
-import { useTasksStore } from '../stores/useTasksStore';
-import { useUIStore } from '../stores/useUIStore';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { useTasksStore } from '@/stores/useTasksStore';
+import { useUIStore } from '@/stores/useUIStore';
 
 interface NavItem {
   name: string;
@@ -44,6 +44,7 @@ export const Sidebar: React.FC = () => {
             badge: approvals.length > 0 ? approvals.length : undefined,
           },
           { name: 'Tasks & Ledger', href: '/tasks', icon: ListTodo },
+          { name: 'Briefings', href: '/briefings', icon: FileText },
           { name: 'Chat with Sentinel', href: '/chat', icon: MessageSquare },
           { name: 'Meetings & Audio', href: '/meetings', icon: Mic },
           { name: 'Knowledge Panel', href: '/knowledge', icon: Network },
@@ -131,17 +132,6 @@ export const Sidebar: React.FC = () => {
           })}
         </nav>
 
-        {user?.role !== 'employee' && (
-          <div className={`p-4 pt-0 shrink-0 ${collapsed ? 'md:hidden' : ''}`}>
-            <div className="stone-card p-3.5 text-xs space-y-2 bg-white">
-              <div className="flex items-center justify-between text-warm-gray">
-                <span>Daily Wakeup Cron</span>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              </div>
-              <p className="text-ink-black font-medium">Scheduled for 08:00 AM</p>
-            </div>
-          </div>
-        )}
         {/* Desktop-only rail toggle. Mobile closes the drawer instead. */}
         <div className="hidden md:block p-3 pt-0 shrink-0">
           <button

@@ -4,11 +4,15 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Query
+from sqlalchemy import func, select
 
 from app.dependencies import CurrentEmployeeId, DbSession, EmployeeUser, TaskSvc
 from app.models.enums import ReportedVia, TaskStatus
+from app.models.status_update import StatusUpdate
+from app.models.task import Task
 from app.schemas.task import (
     EmployeeStatusUpdateCreate,
+    ReminderRead,
     StatusUpdateCreate,
     TaskDetail,
     TaskListResponse,
@@ -79,3 +83,59 @@ def update_my_task_status(
     db.commit()
     db.refresh(updated_task)
     return TaskDetail.model_validate(updated_task)
+
+
+@router.get("/reminders", response_model=list[ReminderRead])
+def list_my_reminders(
+    employee_id: CurrentEmployeeId,
+    db: DbSession,
+    current: EmployeeUser,
+    limit: Annotated[int, Query(ge=1, le=50)] = 20,
+) -> list[ReminderRead]:
+    """Nudges Sentinel has sent this employee, newest first.
+
+    This is the whole of chasing now that Slack is gone. There is no push: an
+    unread reminder is indistinguishable from an employee who has not logged in,
+    which is exactly why the founder's briefing reports silence rather than
+    assuming delivery.
+    """
+    sent = (
+        select(StatusUpdate, Task)
+        .join(Task, Task.id == StatusUpdate.task_id)
+        .where(StatusUpdate.company_id == current.company_id)
+        .where(Task.owner_employee_id == employee_id)
+        .where(StatusUpdate.reported_via == ReportedVia.AGENT)
+        .order_by(StatusUpdate.created_at.desc())
+        .limit(limit)
+    )
+    rows = db.execute(sent).all()
+    if not rows:
+        return []
+
+    # One query for the owner's own replies, so "answered" does not cost a query
+    # per reminder.
+    task_ids = {task.id for _, task in rows}
+    replied = dict(
+        db.execute(
+            select(StatusUpdate.task_id, func.max(StatusUpdate.created_at))
+            .where(StatusUpdate.task_id.in_(task_ids))
+            .where(StatusUpdate.reported_via != ReportedVia.AGENT)
+            .group_by(StatusUpdate.task_id)
+        ).all()
+    )
+
+    return [
+        ReminderRead(
+            id=update.id,
+            task_id=task.id,
+            task_title=task.title,
+            note=update.note,
+            deadline=task.deadline,
+            created_at=update.created_at,
+            answered=(
+                task.id in replied and replied[task.id] is not None
+                and replied[task.id] >= update.created_at
+            ),
+        )
+        for update, task in rows
+    ]

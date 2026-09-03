@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Task } from '../types';
+import { Task } from '@/types';
 import { Clock, User, AlertCircle, CheckCircle2, PlayCircle, HelpCircle } from 'lucide-react';
 
 interface Props {

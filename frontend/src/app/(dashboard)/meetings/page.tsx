@@ -3,9 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useMeetingsStore } from '@/stores/useMeetingsStore';
-import { AudioRecorderStudio } from '@/components/AudioRecorderStudio';
+import { AudioRecorderStudio, DeleteMeetingDialog } from '@/components/meetings';
 import { Meeting } from '@/types';
-import { DeleteMeetingDialog } from '@/components/DeleteMeetingDialog';
 import { FileText, CheckCircle2, Loader2, Trash2 } from 'lucide-react';
 
 export default function MeetingsPage() {

@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { Mic, Square, Upload, FileText, Loader2 } from 'lucide-react';
-import { useMeetingsStore } from '../stores/useMeetingsStore';
+import { useMeetingsStore } from '@/stores/useMeetingsStore';
 
 export const AudioRecorderStudio: React.FC = () => {
   const { uploadAudioMeeting, createTextMeeting, isProcessing, processingMessage } = useMeetingsStore();
