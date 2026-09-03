@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.15.1] - 2026-09-03
+
+### Changed
+- Rewrote the README to reflect the shipped product (two agents — Extractor + Chat — plus a deterministic chase cycle and an in-product employee task view); the old copy still described Slack DMs and a follow-up cron agent removed in v0.14.0, and wrongly claimed no application code existed.
+
 ## [0.15.0] - 2026-09-02
 
 ### Added
