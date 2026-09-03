@@ -12,6 +12,9 @@ passlib==1.7.4
 # Unpinning produces a noisy (harmless) warning on every hash call.
 bcrypt==4.0.1
 python-multipart==0.0.20
+# Direct dependency of app/services/asr_service.py. It resolved transitively
+# until now; in a clean image that is luck, not a guarantee.
+requests==2.32.3
 langchain-openai>=0.2.14
 langchain-core>=0.3.29
 langgraph>=0.2.60

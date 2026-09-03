@@ -10,6 +10,7 @@ import logging
 from apscheduler.schedulers.background import BackgroundScheduler
 from sqlalchemy import select
 
+from app.config import settings
 from app.database import SessionLocal
 from app.models.company import Company
 from app.services.chase_service import run_chase_cycle
@@ -51,12 +52,25 @@ def daily_wake_up_job() -> None:
 
 
 def start_scheduler() -> None:
-    """Initialise and start the background scheduler.
+    """Initialise and start the background scheduler, if this process owns it.
 
-    ``BackgroundScheduler`` lives in the process, so every uvicorn worker starts its
-    own and the job fires once per worker. Safe at one worker; before scaling out
-    this needs a lock or an external trigger.
+    ``BackgroundScheduler`` lives in the process, so every uvicorn worker — and in a
+    container deployment, every replica — starts its own and the job fires once per
+    process. Each firing increments ``chase_count`` and mints reminders for the same
+    tasks, so two of them chase the team twice.
+
+    ``ENABLE_SCHEDULER`` is therefore opt-in and exactly one process may set it.
+    Running more than one instance means leaving it off everywhere and driving
+    ``POST /api/v1/admin/run-chase`` from an external scheduler, which is the same
+    deterministic cycle with the ownership question answered outside the process.
     """
+    if not settings.enable_scheduler:
+        logger.info(
+            "Scheduler disabled (ENABLE_SCHEDULER is not set). Chase cycles must be "
+            "triggered via POST /api/v1/admin/run-chase."
+        )
+        return
+
     if not scheduler.running:
         # Daily at 08:00 UTC. The chase cadence is per-company; this is only how
         # often we check whether a cadence has elapsed.

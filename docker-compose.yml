@@ -1,0 +1,80 @@
+# Local and single-VPS deployment.
+#
+#   cp backend/.env.example .env   # fill DATABASE_CONNECTION_STRING, JWT_SECRET_KEY
+#   docker compose run --rm api migrate
+#   docker compose up -d
+#
+# Postgres is not a service here: the system of record is Neon, and pointing a
+# deploy at a throwaway container database is a mistake worth making hard.
+#
+# Managed platforms (Cloud Run, ECS, Railway, Fly, App Runner) do not use this
+# file — they build ./backend and take the environment from their own config.
+# See README "Deploying the backend".
+
+x-api-image: &api-image sentinel-api:${API_IMAGE_TAG:-0.1.0}
+
+services:
+  api:
+    image: *api-image
+    build:
+      context: ./backend
+    restart: unless-stopped
+
+    # Secrets come from the environment, never from a layer or an ENV default.
+    # env_file is read by Compose on the host; the values are injected at run
+    # time, so they never appear in `docker history` or the build cache.
+    env_file:
+      - .env
+
+    environment:
+      ENVIRONMENT: production
+      PORT: "8000"
+
+      # One process owns the chase schedule. Raising WEB_CONCURRENCY above 1
+      # while this is true is refused at startup — see backend/docker-entrypoint.sh.
+      ENABLE_SCHEDULER: "true"
+      WEB_CONCURRENCY: "1"
+
+      # Migrations are a separate one-shot step (`compose run --rm api migrate`).
+      # Alembic takes no advisory lock, so running it on boot races itself the
+      # moment there is more than one container.
+      RUN_MIGRATIONS: "false"
+
+    # Bound to loopback: the API is reached through a reverse proxy that
+    # terminates TLS, not directly from the internet.
+    ports:
+      - "127.0.0.1:8000:8000"
+
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4).status==200 else 1)"
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+    security_opt:
+      - no-new-privileges:true
+
+    tmpfs:
+      - /tmp:size=64m
+
+    # Hardening worth enabling — after a verified first boot, not before.
+    #
+    # The image sets HOME=/tmp and PYTHONDONTWRITEBYTECODE, so it should write
+    # nothing outside the tmpfs. "Should" is the operative word: the langchain
+    # stack's cache behaviour has not been observed in this container, and a
+    # read-only root that turns out to be wrong fails at startup on the first
+    # deploy. Uncomment once `docker compose up` has been seen to work without
+    # it, and the guarantee becomes real rather than assumed.
+    #
+    # read_only: true
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

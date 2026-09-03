@@ -1,0 +1,14 @@
+# A CRLF shebang is not a shebang: the kernel looks for `/bin/sh\r` and the
+# container dies with a "no such file or directory" naming a file that plainly
+# exists. Development is on Windows, so this is not hypothetical.
+#
+# Scoped deliberately to what runs inside a container. A blanket
+# `* text=auto eol=lf` would renormalise every tracked file in the repo on the
+# next touch, burying a real change in a whole-tree line-ending diff.
+
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.Dockerfile text eol=lf
+.dockerignore text eol=lf
+docker-compose.yml text eol=lf
+docker-compose.*.yml text eol=lf

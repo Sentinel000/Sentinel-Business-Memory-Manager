@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.16.0] - 2026-09-03
+
+### Added — the backend ships as a container
+
+- **`backend/Dockerfile`** — two-stage build on `python:3.13-slim-bookworm`, matching the pinned development interpreter. Dependencies resolve into a virtualenv in the builder; the runtime stage copies it and installs nothing, so no compiler reaches production and `psycopg[binary]`'s bundled libpq means no `postgresql-client` either. Runs as an unprivileged system user against root-owned, world-readable application files: the process can read itself and cannot rewrite itself. `requirements.txt` is copied before the source so the install layer survives every change that does not touch dependencies.
+- **`backend/docker-entrypoint.sh`** — `serve` (default), `migrate`, or any command exec'd verbatim. Honours `$PORT`, so Cloud Run, Railway, Heroku and Fly need no override, and `exec`s uvicorn as PID 1 so `SIGTERM` drains in-flight requests instead of being swallowed by a shell and hard-killed on the platform's grace timer.
+- **`backend/.dockerignore`**, and a build context of `backend/` rather than the repo root — the root `.env` and the frontend (`node_modules`, two 655KB logos) are outside the context entirely, rather than inside it and excluded by a pattern that has to stay correct. `.venv/` is excluded explicitly: it is the largest thing in the directory and its binaries are Windows-built.
+- **`docker-compose.yml`** for local and single-VPS use: a `tmpfs` for `/tmp`, `no-new-privileges`, log rotation, and the port bound to `127.0.0.1` on the assumption that a reverse proxy terminates TLS. `read_only: true` is included but commented out — the agent stack's cache behaviour has not been observed inside a container, and a read-only root that turns out to be wrong fails at startup on the first deploy. It is enabled after a boot has been seen, not before. No Postgres service — the system of record is Neon, and pointing a deploy at a throwaway container database is a mistake worth making hard.
+- **`.gitattributes`** pinning `eol=lf` for shell scripts and Dockerfiles. Development is on Windows, and a CRLF shebang is not a shebang: the kernel looks for `/bin/sh\r` and the container dies with a "no such file or directory" that names a file which plainly exists.
+- **`ENABLE_SCHEDULER`**, a `README` deployment section, and the container-only variables (`PORT`, `WEB_CONCURRENCY`, `RUN_MIGRATIONS`, `LOG_LEVEL`, `FORWARDED_ALLOW_IPS`) documented in the configuration table.
+
+### Changed
+
+- **⚠️ The daily chase cron no longer runs unless `ENABLE_SCHEDULER=true` is set.** Existing deployments get no chase cycle after this upgrade until that variable is added. This is deliberate. `BackgroundScheduler` lives inside the process, so every uvicorn worker — and, in a container deployment, every replica — starts its own and the job fires once per process, each firing incrementing `chase_count` and minting reminders for the same tasks. The existing `--workers 1` note covered only half of that: it says nothing about replicas, and no Dockerfile can. Exactly one process may set `ENABLE_SCHEDULER`; scaled out, it stays off everywhere and `POST /api/v1/admin/run-chase` is driven from a platform cron — the same deterministic cycle with the ownership question answered outside the process. The entrypoint refuses `ENABLE_SCHEDULER=true` alongside `WEB_CONCURRENCY > 1` rather than letting the combination double-chase a real team.
+- The safe value is the one that does nothing, so the default is off in development too. A second instance that forgets to disable it chases the team twice, and nobody finds out until an employee complains.
+
+### Fixed
+
+- **`requests` was a direct import with no entry in `requirements.txt`.** `app/services/asr_service.py` imports it; it resolved transitively through the agent stack, which is luck rather than a guarantee, and a clean image build is exactly where that luck runs out. Now pinned at `2.32.3`.
+
+### Notes
+
+- **Migrations are a separate step, not a boot hook.** Alembic takes no advisory lock, so two containers starting together can both attempt the same revision. `RUN_MIGRATIONS` defaults to `false`; `docker run --rm <image> migrate` is the intended path, and the flag exists for single-instance deploys where the extra step is not worth the ceremony. Either way the working directory is `/app`, which is what `alembic.ini`'s relative `script_location` and `prepend_sys_path` depend on.
+- Liveness and readiness probes belong on `GET /health`, which deliberately does not touch the database — a Neon hiccup should not get the container killed. The image's `HEALTHCHECK` uses `python -c urllib` rather than `curl`, which the slim image does not carry and which is not worth adding to production forever; Cloud Run and Kubernetes ignore it and use their own probes regardless.
+- `langchain-*`, `langgraph`, `apscheduler` and `hydradb-sdk` are floor-pinned (`>=`), so two builds a week apart can resolve different versions. Not addressed here — the fix is a fully pinned lock file, and it should be its own change.
+- Verified: the scheduler gate starts and refuses to start under both settings, and all seven entrypoint branches behave (default serve, the refused scheduler/worker combination, multi-worker with the scheduler off, `migrate`, `RUN_MIGRATIONS=true`, command passthrough, and a non-numeric `WEB_CONCURRENCY`). **The image itself has not been built** — Docker is not installed on this machine. `docker build ./backend` is the outstanding check.
+
 ## [0.15.1] - 2026-09-03
 
 ### Changed

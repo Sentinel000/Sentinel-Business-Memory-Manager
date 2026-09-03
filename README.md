@@ -37,6 +37,7 @@ automatically. It can't make someone respond — it guarantees the founder knows
 - [API surface](#api-surface)
 - [Project structure](#project-structure)
 - [Configuration](#configuration)
+- [Deploying the backend](#deploying-the-backend)
 - [Project status](#project-status)
 - [Contributing](#contributing)
 - [Documentation](#documentation)
@@ -228,6 +229,10 @@ Check it's alive:
 - **Health:** `GET http://localhost:8000/health`
 - **Interactive API docs:** `http://localhost:8000/docs` *(disabled in production)*
 
+The daily chase cron does not run by default — set `ENABLE_SCHEDULER=true` if you want
+it locally, or trigger a cycle on demand with `POST /api/v1/admin/run-chase`. See
+[Deploying the backend](#deploying-the-backend) for why exactly one process may own it.
+
 ### 3. Run the frontend
 
 ```bash
@@ -333,6 +338,84 @@ All settings load from the root `.env` (see [`backend/.env.example`](backend/.en
 | `CORS_ORIGINS` | — | Comma-separated allowed origins (default `http://localhost:3000`). |
 | `ENVIRONMENT` | — | `development` or `production` (disables Swagger docs in production). |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | — | Token lifetime (default `480`). |
+| `ENABLE_SCHEDULER` | — | Starts the daily chase cron **in this process**. Off by default; exactly one process may set it. See [Deploying the backend](#deploying-the-backend). |
+
+Container-only variables, read by [`backend/docker-entrypoint.sh`](backend/docker-entrypoint.sh)
+rather than by the app: `PORT` (default `8000`), `WEB_CONCURRENCY` (default `1`),
+`RUN_MIGRATIONS` (default `false`), `LOG_LEVEL`, `FORWARDED_ALLOW_IPS`.
+
+## Deploying the backend
+
+[`backend/Dockerfile`](backend/Dockerfile) builds the API as a two-stage image on
+`python:3.13-slim-bookworm`: dependencies compile into a virtualenv that the runtime
+stage copies, so no build toolchain ships to production. It runs as an unprivileged
+system user, installs nothing at runtime beyond the interpreter (`psycopg[binary]`
+bundles libpq), and takes every secret from the environment — nothing is baked into a
+layer.
+
+The build context is `backend/`, which keeps the root `.env` and the frontend out of
+the context entirely rather than trusting `.dockerignore` to catch them.
+
+```bash
+docker build -t sentinel-api:0.1.0 ./backend
+
+docker run --rm --env-file .env sentinel-api:0.1.0 migrate     # one-shot, before rollout
+
+docker run -d -p 8000:8000 --env-file .env sentinel-api:0.1.0  # serve
+```
+
+The entrypoint takes `serve` (default), `migrate`, or any command to exec verbatim —
+`docker run --rm --env-file .env sentinel-api:0.1.0 python -m scripts.seed`.
+
+### The one thing to get right: who owns the schedule
+
+APScheduler's `BackgroundScheduler` lives inside the process. Every uvicorn worker and
+every replica starts its own, and each firing increments `chase_count` and mints
+reminders for the same tasks — so two instances chase your team twice, and nobody finds
+out until an employee complains.
+
+`ENABLE_SCHEDULER` is therefore off by default and exactly one process may set it. The
+entrypoint refuses `ENABLE_SCHEDULER=true` alongside `WEB_CONCURRENCY > 1` rather than
+letting the combination run.
+
+| Deployment | Scheduler | Chase trigger |
+|---|---|---|
+| Single VPS / Compose | `ENABLE_SCHEDULER=true`, `WEB_CONCURRENCY=1` | In-process, daily at 08:00 UTC |
+| Cloud Run, ECS, Fly, Railway, Kubernetes | leave off everywhere | Platform cron → `POST /api/v1/admin/run-chase` |
+
+The second row is the same deterministic cycle with the ownership question answered
+outside the process, and it is the only correct choice anywhere the platform can scale
+to more than one instance — including scale-to-zero, where an in-process cron simply
+never fires.
+
+### Migrations
+
+Run `migrate` as its own step. Alembic takes no advisory lock, so two containers
+starting together can both attempt the same revision. `RUN_MIGRATIONS=true` moves it
+into boot for single-instance deploys where the extra step is not worth the ceremony;
+do not set it on anything that can run two replicas.
+
+### Platform notes
+
+- **Port** — the entrypoint honours `$PORT`, so Cloud Run, Railway, Heroku and Fly work
+  with no override.
+- **Health** — point liveness and readiness probes at `GET /health`. It deliberately
+  does not touch the database, so a Neon hiccup does not get your container killed. The
+  image's own `HEALTHCHECK` is for Compose and plain Docker; managed platforms ignore it.
+- **Signals** — uvicorn runs as PID 1 and drains in-flight requests on `SIGTERM`, with a
+  30s graceful shutdown.
+- **TLS** — the container serves plain HTTP and expects a proxy in front. `--proxy-headers`
+  is on; narrow `FORWARDED_ALLOW_IPS` from `*` to the proxy subnet if the port is
+  directly reachable.
+
+[`docker-compose.yml`](docker-compose.yml) covers the local and single-VPS case: a
+`tmpfs` for `/tmp`, `no-new-privileges`, log rotation, and the port bound to loopback on
+the assumption that a reverse proxy terminates TLS. A `read_only: true` root filesystem
+is included but commented out — enable it once you have seen the container boot, since
+the agent stack's cache behaviour has not been observed in a container and a read-only
+root that turns out to be wrong fails at startup. There is no Postgres service: the
+system of record is Neon, and pointing a deploy at a throwaway container database is a
+mistake worth making hard.
 
 ## Project status
 

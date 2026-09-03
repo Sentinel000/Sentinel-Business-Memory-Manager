@@ -1,0 +1,38 @@
+# Build context is backend/. Everything here stays out of the image.
+
+# Secrets — never in a layer. See docs/rules/security.md.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+
+# Local virtualenv — by far the largest thing in this directory, and its
+# binaries are Windows-built, so copying it in would break the image anyway.
+.venv/
+venv/
+
+# Python build noise
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# VCS and editors
+.git/
+.gitignore
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Verification scripts talk to a live database and are not part of the runtime.
+scripts/verify*.py
+scripts/probe_*.py
+
+# Docker's own files
+Dockerfile
+.dockerignore

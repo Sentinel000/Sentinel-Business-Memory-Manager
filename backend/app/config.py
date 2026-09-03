@@ -33,6 +33,17 @@ class Settings(BaseSettings):
     environment: str = "development"
     cors_origins: str = "http://localhost:3000"
 
+    # The chase schedule. BackgroundScheduler lives in the process, so every
+    # uvicorn worker and every replica would run its own cycle — each one
+    # incrementing chase_count and minting reminders for the same tasks. Exactly
+    # one process may set this. Off by default because the safe value is the one
+    # that does nothing: a second instance that forgets to disable it chases the
+    # team twice, and nobody notices until an employee complains.
+    #
+    # Scaled out, leave it false everywhere and drive POST
+    # /api/v1/admin/run-chase from a platform scheduler instead.
+    enable_scheduler: bool = False
+
     # Agent & LLM (Qwen API via OpenAI-compatible endpoint).
     # No default: a key belongs in .env, never in the repo. See docs/rules/security.md.
     qwen_api_key: str = ""
