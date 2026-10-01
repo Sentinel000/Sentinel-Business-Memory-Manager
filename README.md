@@ -90,6 +90,7 @@ Run it for a few weeks and you get an operational record nobody wrote on purpose
 | **Zero-friction delegation** | Approved tasks land in each owner's own task view — one tap to report status, no typing. |
 | **Automated chasing** | A deterministic daily cycle reminds quiet owners, then hands a task back to the founder when the ladder runs out. |
 | **On-demand briefings** | A founder report of what moved, what's blocked, and what's due — regenerated safely, without re-chasing anyone. |
+| **WhatsApp import** | Upload a group's *Export chat* file; commitments come out with the exact sender and the date each message was sent. Reads Roman Urdu and mixed Urdu/English. |
 | **Ask your business** | Read-only chat over live state and settled history — *"what's blocking the Q4 forecast?"* |
 | **Multi-tenant by design** | A dedicated instance per client, with `company_id` row-level tenancy on every record. |
 | **Full audit trail** | Every tool call logs actor, input, result, and timestamp. Idempotency keys make re-runs safe. |
@@ -255,7 +256,8 @@ You'll land in the founder dashboard with one task already waiting in the approv
 
 **As a founder (in the dashboard):**
 
-1. **Capture** — upload meeting audio, paste a transcript, or type a commitment by hand.
+1. **Capture** — upload meeting audio, paste a transcript, import a WhatsApp group chat
+   (WhatsApp's own *Export chat* file, no connection needed), or type a commitment by hand.
 2. **Approve** — open the approval queue, review each extracted task and its source quote, then
    approve, edit, or reject.
 3. **Ask** — use chat to query live state and history: *"what's overdue?"*, *"what did we decide
@@ -286,7 +288,7 @@ All endpoints are mounted under `/api/v1`.
 | `company` | Tenant configuration and settings |
 | `onboarding` | Bulk employee import and readiness checks |
 | `me` | Employee-facing task list and status updates |
-| `meetings` | Audio/text ingestion, transcription, extraction |
+| `meetings` | Audio, text and WhatsApp-export ingestion, transcription, extraction |
 | `chat` | Read-only Q&A over Postgres and HydraDB |
 | `knowledge` | Knowledge-layer queries and provisioning |
 | `reports` | Chase tracking and generated reports |

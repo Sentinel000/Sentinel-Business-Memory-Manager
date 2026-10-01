@@ -1,0 +1,32 @@
+23/09/2026, 09:58 - Messages and calls are end-to-end encrypted. Only people in this chat can read, listen to, or share them. Learn more.
+23/09/2026, 09:58 - Ayesha Khan created group "Delivery Team"
+23/09/2026, 10:02 - Ayesha Khan added Bilal Ahmed, Hamza Sheikh and Sana Malik
+23/09/2026, 10:05 - Ayesha Khan: Assalam o alaikum team. Meridian ka kaam is hafte close karna hai, saari updates yahin dein please
+23/09/2026, 10:07 - Hamza Sheikh: Walaikum assalam 👍
+23/09/2026, 10:11 - Bilal Ahmed: Ingestion pipeline done hai ✅ Evaluation harness ke liye Meridian ka sample dataset chahiye, 9 din se wait kar raha hoon
+23/09/2026, 10:13 - Ayesha Khan: Hamza ye tumhara client hai. Kal tak dataset unblock karwa do please
+23/09/2026, 10:14 - Hamza Sheikh: Ji theek hai, main seedha unke CTO se baat karta hoon. Kal tak ho jaye ga
+23/09/2026, 10:16 - Bilal Ahmed: Dataset aate hi 3 din ka kaam hai. Harness Monday tak ready kar doon ga
+23/09/2026, 10:20 - Sana Malik: Case study ka first draft ready hai, bas numbers chahiye
+23/09/2026, 10:21 - Ayesha Khan: Bilal, Sana ko latency aur accuracy ke numbers Friday tak bhej dena
+23/09/2026, 10:22 - Bilal Ahmed: Done, Friday tak bhej doon ga
+23/09/2026, 10:24 - Sana Malik: <Media omitted>
+24/09/2026, 16:40 - Hamza Sheikh: Meridian ke CTO se baat ho gayi. Unhon ne kaha dataset Monday tak share karenge
+24/09/2026, 16:42 - Ayesha Khan: Theek hai. Bilal phir harness ki date aagay kar do
+24/09/2026, 16:43 - Bilal Ahmed: Ok, phir harness Wednesday tak 👍
+25/09/2026, 11:05 - Bilal Ahmed: Sana numbers bhej diye hain email pe
+25/09/2026, 11:06 - Sana Malik: Mil gaye, shukriya!
+25/09/2026, 11:30 - Ayesha Khan: Pricing pe decision: 1 October se naye retainers 12,000 per month se start honge, hourly quote bilkul nahi karna. Purane clients renewal tak apni current rate pe rahenge.
+25/09/2026, 11:32 - Hamza Sheikh: Thora inbound kam ho jaye ga
+25/09/2026, 11:33 - Ayesha Khan: Pata hai, accept hai. Behtar hai 4 clients achay se serve karein bajaye 9 ke
+25/09/2026, 11:35 - Ayesha Khan: Hamza pricing page 30 tareekh se pehle update kar dena
+25/09/2026, 11:36 - Hamza Sheikh: Ji kar doon ga
+25/09/2026, 11:40 - Ayesha Khan: Aur renewal wali baat-cheet ke talking points bhi chahiye, har client poochay ga number kyun badla
+25/09/2026, 11:41 - Sana Malik: Main likh deti hoon
+28/09/2026, 10:15 - Sana Malik: Case study legal ko bhej di hai. Unka OK aate hi publish kar doon gi, 30 tak ho jaye gi InshaAllah
+28/09/2026, 10:16 - Hamza Sheikh: This message was deleted
+29/09/2026, 09:50 - Bilal Ahmed: Ayesha, dataset abhi tak nahi aaya 😕 harness Wednesday tak mushkil hai
+Meridian ki team ne kal bhi reply nahi kiya
+29/09/2026, 09:52 - Ayesha Khan: Hamza please dobara follow up karo aaj hi
+29/09/2026, 09:53 - Hamza Sheikh: Ji abhi call karta hoon <This message was edited>
+29/09/2026, 17:40 - Hamza Sheikh: CTO ne confirm kiya, dataset kal subah tak aa jaye ga 🤞

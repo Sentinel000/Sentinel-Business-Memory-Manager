@@ -12,6 +12,7 @@ interface MeetingsState {
   fetchMeetingDetail: (id: string) => Promise<void>;
   uploadAudioMeeting: (file: File, title?: string) => Promise<Meeting>;
   createTextMeeting: (title: string, transcript: string) => Promise<Meeting>;
+  importWhatsAppChat: (file: File, days: number, title?: string) => Promise<Meeting>;
   previewDelete: (id: string) => Promise<MeetingDeletePreview>;
   deleteMeeting: (id: string) => Promise<number>;
 }
@@ -51,6 +52,26 @@ export const useMeetingsStore = create<MeetingsState>((set, get) => ({
 
     try {
       const res = await api.post('/meetings/audio', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      set({ isProcessing: false, processingMessage: '' });
+      get().fetchMeetings();
+      return res.data;
+    } catch (err) {
+      set({ isProcessing: false, processingMessage: '' });
+      throw err;
+    }
+  },
+
+  importWhatsAppChat: async (file, days, title) => {
+    set({ isProcessing: true, processingMessage: 'Reading the chat and extracting commitments...' });
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('days', String(days));
+    if (title) formData.append('title', title);
+
+    try {
+      const res = await api.post('/meetings/whatsapp', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       set({ isProcessing: false, processingMessage: '' });

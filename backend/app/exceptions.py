@@ -85,6 +85,13 @@ class ConflictError(SentinelError):
         super().__init__(message)
 
 
+class ExtractionFailedError(SentinelError):
+    """The upload was received, but the model could not process it."""
+
+    status_code = status.HTTP_502_BAD_GATEWAY
+    code = "EXTRACTION_FAILED"
+
+
 def _body(code: str, message: str) -> dict[str, object]:
     return {"error": message, "code": code}
 

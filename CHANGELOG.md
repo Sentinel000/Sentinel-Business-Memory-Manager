@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.17.0] - 2026-10-01
+
+### Added
+- **WhatsApp chat import.** The founder uploads WhatsApp's own "Export chat" file (Android .txt or iPhone .zip) and commitments are extracted with the exact sender and each message's own date. No API, no bot, nothing connected; only the last N days are read (default 7, counted back from the newest message).
+- **The extractor now reads Roman Urdu and mixed Urdu/English**, writes titles in English, and keeps quotes verbatim in the original language. Check quality with `python -m scripts.try_whatsapp_extraction` (needs `QWEN_API_KEY`) before relying on it in a demo.
+- `docs/demo/WhatsApp Chat with Delivery Team.txt` for the stage, and `scripts/verify_whatsapp_import.py` (59 checks, no Qwen key needed).
+
+### Fixed
+- **No agent was ever told today's date**, so "by Friday" became a guessed ISO date. The extractor now gets today's date and the date the conversation happened, and resolves deadlines against it.
+- **Uploading meeting audio froze the whole API** for every user until transcription finished (`async def` around blocking calls). It now runs in the threadpool.
+- **Any server crash showed as "Cannot reach the server"**, because Starlette's 500 bypasses the CORS layer and the browser hid it. Errors now carry CORS headers, and a failed model call returns a clear 502 saying the upload was saved and to try again.
+
 ## [0.15.1] - 2026-09-03
 
 ### Changed

@@ -1,14 +1,67 @@
 """Transcript and meeting notes extraction prompt."""
 
+from datetime import UTC, date, datetime
+from typing import Literal
+
 from app.agentic_ai.prompts.base import render_base_prompt
 from app.models.company import Company
 
+SourceKind = Literal["meeting", "whatsapp"]
 
-def render_extractor_prompt(company: Company) -> str:
+
+def _dates_section(occurred_on: date | None, source_kind: SourceKind) -> str:
+    """Anchor relative deadlines. Without this the model is never told the date, so
+    "by Friday" became a guessed ISO date - and deadlines drive the whole chase."""
+    today = datetime.now(UTC).date()
+    lines = [f"Today is {today:%A} {today.day} {today:%B %Y}."]
+    if source_kind == "whatsapp":
+        lines.append(
+            "Every line starts with the date and time that message was sent. Resolve a "
+            "relative deadline against the date of the message it appears in."
+        )
+    elif occurred_on is not None:
+        lines.append(
+            f"This conversation took place on {occurred_on:%A} {occurred_on.day} "
+            f"{occurred_on:%B %Y}. Resolve relative deadlines against that date, not today."
+        )
+    else:
+        lines.append("Resolve relative deadlines against today.")
+    lines.append(
+        "Write deadlines as ISO-8601 dates. If nobody stated a deadline, leave it null "
+        "rather than inventing one."
+    )
+    return "\n".join(lines)
+
+
+_LANGUAGE = """People may write in English, Urdu, Roman Urdu (Urdu in English letters), or a
+mix of them in one sentence. Understand all of them. Write titles and descriptions in
+clear English. Copy source_quote exactly as it was written - same language, same
+spelling, never translated or tidied - because the founder sees it as the proof."""
+
+_WHATSAPP = """This is a WhatsApp group chat. Each line is "[date time] Sender: message", and
+the sender is exactly who said it. A commitment can be taken on by the sender ("I'll
+send it tonight") or given to someone by name ("Bilal, send it by Friday"); either way
+the owner is the person who will do the work. Skip greetings, jokes, links and bare
+acknowledgements ("ok", "done", a thumbs up) unless they accept a specific task."""
+
+
+def render_extractor_prompt(
+    company: Company,
+    *,
+    occurred_on: date | None = None,
+    source_kind: SourceKind = "meeting",
+) -> str:
     """Render system prompt for transcript extraction."""
     base = render_base_prompt(company)
+    source_note = f"\n{_WHATSAPP}\n" if source_kind == "whatsapp" else ""
 
     return f"""{base}
+Dates:
+{_dates_section(occurred_on, source_kind)}
+
+Language:
+{_LANGUAGE}
+{source_note}
 Operational Task: Action Item & Commitment Extraction.
 Analyze the provided meeting transcript, email, or notes to extract concrete commitments and tasks.
 

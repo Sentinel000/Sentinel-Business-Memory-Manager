@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agentic_ai.factory import build_sentinel
+from app.agentic_ai.prompts.extractor import SourceKind
 from app.knowledge.provisioning import ensure_knowledge_database
 from app.models.company import Company
 from app.models.task import Task
@@ -21,6 +22,7 @@ def run_transcript_extraction(
     source_ref: str | None = None,
     meeting_title: str | None = None,
     occurred_on: date | None = None,
+    source_kind: SourceKind = "meeting",
 ) -> dict[str, Any]:
     """Process a raw transcript or meeting recording, extracting structured action items.
 
@@ -37,6 +39,7 @@ def run_transcript_extraction(
         source_ref=source_ref,
         meeting_title=meeting_title,
         occurred_on=occurred_on,
+        source_kind=source_kind,
     )
 
     # Bound the result query to this run. Filtering on created_by_agent alone returns
