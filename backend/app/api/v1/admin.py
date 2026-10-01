@@ -4,6 +4,7 @@ from fastapi import APIRouter
 
 from app.dependencies import DbSession, FounderUser
 from app.services.chase_service import run_chase_cycle
+from app.services.notification_service import notify_reminded
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -21,6 +22,7 @@ def run_chase_now(
     """
     result = run_chase_cycle(db, current_founder.company)
     db.commit()
+    notify_reminded(db, current_founder.company_id, result.reminded_task_ids)
     return {
         "status": "completed",
         "company": result.company,

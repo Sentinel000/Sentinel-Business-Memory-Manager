@@ -178,7 +178,7 @@ flowchart TB
 | **Transcription** | Qwen ASR Flash (audio → text with segments) |
 | **Operational data** | PostgreSQL on Neon (serverless), psycopg 3, pgbouncer-aware pooling |
 | **Knowledge data** | HydraDB (`hydradb-sdk`) for temporal retrieval — optional, degrades gracefully |
-| **Employee channel** | In-product task view (`/me`) — Slack retired as a delivery channel in v0.14.0 |
+| **Employee channel** | In-product task view (`/me`), plus email with one-tap status links over any SMTP provider. Slack retired in v0.14.0 |
 | **Infrastructure** | Docker, VPS |
 
 ## Getting started
@@ -269,9 +269,11 @@ You'll land in the founder dashboard with one task already waiting in the approv
 2. Tap a button: **Complete / In Progress / Flag Blocker**.
 3. A blocker goes straight to the founder.
 
-> There is no push notification — a reminder lives in the dashboard, so an unread nudge looks just
-> like an employee who hasn't logged in. Sentinel can't force a reply, but a task that goes quiet
-> is chased and then handed back to the founder, so nothing rots silently.
+> With email configured, each delegation and reminder arrives in the owner's inbox with
+> Complete / In progress / Blocked buttons that work without a login. Without it, reminders live
+> only in the dashboard, where an unread nudge looks just like an employee who hasn't logged in.
+> Either way Sentinel can't force a reply, but a task that goes quiet is chased and then handed
+> back to the founder, so nothing rots silently.
 
 ## API surface
 
@@ -291,6 +293,7 @@ All endpoints are mounted under `/api/v1`.
 | `knowledge` | Knowledge-layer queries and provisioning |
 | `reports` | Chase tracking and generated reports |
 | `admin` | Trigger a chase cycle on demand (`POST /admin/run-chase`) |
+| `actions` | Public one-tap status links from email. Signed, single-task, expiring; GET previews, POST records |
 
 ## Project structure
 
@@ -330,6 +333,9 @@ All settings load from the root `.env` (see [`backend/.env.example`](backend/.en
 | `AGENT_MODEL` | — | Model name used by the agents (default `qwen3.6-plus`). |
 | `AUTO_APPROVE_THRESHOLD_DEFAULT` | — | Confidence at/above which a task auto-approves. `1.0` disables auto-approval. |
 | `HYDRA_DB_API_KEY` | — | Enables the knowledge layer. Empty disables it without breaking startup. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_USE_SSL` | — | Outbound email. Empty host disables email without breaking anything. |
+| `EMAIL_FROM` | — | Sender, e.g. `Sentinel <sentinel@yourdomain.com>`. Required for email. |
+| `APP_BASE_URL` | — | Where the web app is served; links in emails point here (default `http://localhost:3000`). |
 | `CORS_ORIGINS` | — | Comma-separated allowed origins (default `http://localhost:3000`). |
 | `ENVIRONMENT` | — | `development` or `production` (disables Swagger docs in production). |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | — | Token lifetime (default `480`). |

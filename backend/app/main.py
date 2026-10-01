@@ -18,6 +18,15 @@ logging.basicConfig(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Refuse to serve production traffic on the public placeholder key. It signs
+    # every session and every emailed action link, and the tenant id travels inside
+    # those tokens, so a known key would let anyone mint access to any company.
+    if settings.is_production and settings.uses_weak_jwt_secret:
+        raise RuntimeError(
+            "JWT_SECRET_KEY is the default placeholder or shorter than 32 characters. "
+            "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(48))\""
+        )
+
     # Startup: Start APScheduler
     start_scheduler()
     yield

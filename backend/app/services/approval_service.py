@@ -63,6 +63,12 @@ class ApprovalService(TenantService):
         approval.decided_by_user_id = decided_by.id
         approval.decided_at = datetime.now(UTC)
         approval.task.status = TaskStatus.APPROVED
+        # Approval is the moment the owner is handed the work, so it is when their
+        # silence starts counting. Until now nothing set this, and the chase fell
+        # back to created_at - counting silence from the meeting, not from when the
+        # person was told. An unowned task waits for an owner to be assigned.
+        if approval.task.owner_employee_id is not None:
+            approval.task.delegated_at = approval.decided_at
         self.db.flush()
         return approval
 

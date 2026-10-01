@@ -9,6 +9,19 @@ from app.models.enums import ApprovalState
 from app.schemas.task import TaskDetail, TaskSummary, TaskUpdate
 
 
+class ApprovalTask(TaskSummary):
+    """A queued task, with what a founder needs to judge it at a glance.
+
+    TaskSummary alone omits the quote, so the queue - whose whole job is "check the
+    sentence this came from" - had nothing to show the founder.
+    """
+
+    description: str | None = None
+    source_quote: str | None = None
+    source_ref: str | None = None
+    confidence: float | None = None
+
+
 class ApprovalSummary(BaseModel):
     """A queue row: the decision plus enough of the task to judge it."""
 
@@ -18,7 +31,7 @@ class ApprovalSummary(BaseModel):
     task_id: uuid.UUID
     state: ApprovalState
     created_at: datetime
-    task: TaskSummary
+    task: ApprovalTask
 
 
 class ApprovalDetail(BaseModel):

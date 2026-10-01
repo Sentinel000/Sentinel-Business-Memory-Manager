@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.16.0] - 2026-10-01
+
+### Added
+- **Email chase with one-tap status links.** Owners are emailed when work is delegated to them and on every chase reminder, with Complete / In progress / Blocked buttons that need no login; founders are emailed the moment a blocker is flagged, in the app or by email. Off unless `SMTP_HOST` and `EMAIL_FROM` are set, so nothing changes for a deployment that has not configured mail.
+- **Public `/act/[token]` page and `/api/v1/actions` endpoints.** A link is signed, bound to one task and one employee, expires after 7 days, and stops working if the task is reassigned. GET only previews: mail scanners open every link, so the status is recorded only when the person presses Confirm.
+- **Live refresh** on the approval queue, task ledger and employee view (every 10s, and on focus), so a status tapped from an email shows up on the founder's screen without a reload. Set `NEXT_PUBLIC_LIVE_REFRESH_MS=3000` for a live demo.
+- `scripts/verify_email_chase.py`, 66 checks against a real in-process SMTP server, standard library only. Covers escaping, link scope, expiry, reassignment, rate limits and the production key guard.
+
+### Fixed
+- **The approval queue rendered every card blank** ("Extracted Action Item", unassigned, no deadline, no quote): the API nests each task, the card read flat fields. The store now flattens it, and the list includes the source quote, source and confidence the queue exists to show.
+- **The frontend sent `owner_id`; every endpoint reads `owner_employee_id`**, so hand-typed tasks were always created unassigned, reassigning from an approval card did nothing, and the assignee filter was ignored. Renamed throughout; the old name is gone from the types so it cannot creep back.
+- **`delegated_at` was never set**, so the chase counted an owner's silence from when the task was extracted rather than when they were told. It is now stamped on approval, founder-typed creation, auto-approval and reassignment.
+- **Production now refuses to start on the placeholder `JWT_SECRET_KEY`** (or any key under 32 characters). That key signs sessions and email links, and the tenant id rides inside them; watch for this on the next deploy if production was relying on the default.
+
 ## [0.15.1] - 2026-09-03
 
 ### Changed

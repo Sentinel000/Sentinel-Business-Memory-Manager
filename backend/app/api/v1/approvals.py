@@ -12,6 +12,7 @@ from fastapi import APIRouter, Query
 from app.dependencies import ApprovalSvc, DbSession, FounderUser
 from app.models.approval import Approval
 from app.models.enums import ApprovalState
+from app.services.notification_service import notify_delegated, task_ids_for_approvals
 from app.schemas.approval import (
     ApprovalDetail,
     ApprovalEditRequest,
@@ -74,6 +75,7 @@ def approve(
     approval = service.approve(approval_id, decided_by=current_user)
     db.commit()
     db.refresh(approval)
+    notify_delegated(db, current_user.company_id, [approval.task_id])
     return _detail(approval, service)
 
 
@@ -125,4 +127,8 @@ def bulk_approve(
     """
     approved, skipped = service.bulk_approve(payload.approval_ids, decided_by=current_user)
     db.commit()
+    notify_delegated(
+        db, current_user.company_id,
+        task_ids_for_approvals(db, current_user.company_id, approved),
+    )
     return BulkApproveResponse(approved=approved, skipped=skipped)

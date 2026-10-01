@@ -32,6 +32,18 @@ api.interceptors.response.use(
   }
 );
 
+/**
+ * For the one unauthenticated surface: the one-tap links in emails. No bearer token
+ * is attached and a 401 never bounces to /login - whoever opens the link may not be
+ * signed in on this device at all, and does not need to be.
+ */
+export const publicApi = axios.create({
+  baseURL: API_BASE,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
 /** The backend error envelope: {"error": "...", "code": "..."}. */
 export function apiErrorMessage(err: unknown, fallback: string): string {
   if (axios.isAxiosError(err)) {

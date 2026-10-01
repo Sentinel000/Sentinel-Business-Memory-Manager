@@ -16,13 +16,13 @@ export const ApprovalCard: React.FC<Props> = ({ item, employees, onApprove, onRe
   const [showQuote, setShowQuote] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(item.title);
-  const [editOwner, setEditOwner] = useState(item.owner_id || '');
+  const [editOwner, setEditOwner] = useState(item.owner_employee_id || '');
   const [editDeadline, setEditDeadline] = useState(item.deadline?.split('T')[0] || '');
 
   const handleSaveEdit = () => {
     onEdit(item.id, {
       title: editTitle,
-      owner_id: editOwner || undefined,
+      owner_employee_id: editOwner || undefined,
       deadline: editDeadline || undefined,
     });
     setIsEditing(false);

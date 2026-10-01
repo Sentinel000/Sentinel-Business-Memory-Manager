@@ -3,6 +3,7 @@
 import React, { useEffect } from 'react';
 import { Bell } from 'lucide-react';
 import { useRemindersStore, unanswered } from '@/stores/useRemindersStore';
+import { useLiveRefresh } from '@/lib/useLiveRefresh';
 
 /**
  * Reminders Sentinel has sent this employee.
@@ -21,6 +22,9 @@ export const ReminderBanner: React.FC = () => {
   useEffect(() => {
     fetchReminders();
   }, [fetchReminders]);
+
+  // Called before the early return below - a hook must run on every render.
+  useLiveRefresh(fetchReminders);
 
   const open = unanswered(reminders);
   if (open.length === 0) return null;

@@ -10,6 +10,7 @@ from app.dependencies import CurrentEmployeeId, DbSession, EmployeeUser, TaskSvc
 from app.models.enums import ReportedVia, TaskStatus
 from app.models.status_update import StatusUpdate
 from app.models.task import Task
+from app.services.notification_service import notify_blocked
 from app.schemas.task import (
     EmployeeStatusUpdateCreate,
     ReminderRead,
@@ -82,6 +83,13 @@ def update_my_task_status(
     updated_task = tasks.record_status(task.id, full_payload)
     db.commit()
     db.refresh(updated_task)
+
+    # Same as the email link: a blocker is waiting on the founders, so tell them.
+    if payload.status is TaskStatus.BLOCKED:
+        notify_blocked(
+            db, updated_task.company_id, updated_task.id,
+            reported_by_employee_id=employee_id, note=payload.note,
+        )
     return TaskDetail.model_validate(updated_task)
 
 

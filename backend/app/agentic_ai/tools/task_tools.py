@@ -14,6 +14,7 @@ from app.models.enums import ApprovalState, TaskStatus
 from app.models.task import Task
 from app.repositories.employee import EmployeeRepository
 from app.schemas.task import StatusUpdateCreate, TaskCreate, TaskDetail, TaskSummary, TaskUpdate
+from app.services.notification_service import notify_delegated
 from app.services.task_service import TaskService
 
 
@@ -420,6 +421,8 @@ def create_extractor_task_tools(
                         approval.state = ApprovalState.APPROVED
                         approval.decided_at = datetime.now(UTC)
                     task.status = TaskStatus.APPROVED
+                    if task.owner_employee_id is not None:
+                        task.delegated_at = datetime.now(UTC)
 
                 # create_pending flushes but does not commit. Without this the block
                 # exits, the transaction rolls back, and the tool reports success on
@@ -427,6 +430,11 @@ def create_extractor_task_tools(
                 session.commit()
                 session.refresh(task)
                 detail = _task_to_detail(task)
+
+                # Auto-approval delegates without a founder clicking, so the owner
+                # has to be told here or they would never hear about it.
+                if created and task.status is TaskStatus.APPROVED:
+                    notify_delegated(session, company_id, [task.id])
 
             duration = int((time.monotonic() - start_time) * 1000)
             record_audit(None, company_id, "extractor", "create_extracted_task", {"title": title, "confidence": confidence, "status": detail.get("status"), "duplicate": not created}, detail, "success", duration_ms=duration)

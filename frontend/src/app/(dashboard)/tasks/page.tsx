@@ -6,6 +6,7 @@ import { useCompanyStore } from '@/stores/useCompanyStore';
 import { TaskCard, TaskDetailModal } from '@/components/tasks';
 import { Task, Employee } from '@/types';
 import { Plus } from 'lucide-react';
+import { useLiveRefresh } from '@/lib/useLiveRefresh';
 
 export default function TasksPage() {
   const { tasks, fetchTasks, createTask, updateTaskStatus, deleteTask, statusFilter, setStatusFilter, ownerFilter, setOwnerFilter } = useTasksStore();
@@ -21,10 +22,13 @@ export default function TasksPage() {
     fetchEmployees();
   }, [fetchTasks, fetchEmployees]);
 
+  // An owner tapping a status - in the app or from an email - flips their card here.
+  useLiveRefresh(fetchTasks);
+
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-    await createTask({ title, owner_id: ownerId || undefined, deadline: deadline || undefined });
+    await createTask({ title, owner_employee_id: ownerId || undefined, deadline: deadline || undefined });
     setTitle('');
     setShowCreate(false);
   };

@@ -1,6 +1,39 @@
 import { create } from 'zustand';
-import { Task, ApprovalItem, TaskStatus } from '../types';
+import { Task, ApprovalItem, ApprovalEdit, TaskStatus } from '../types';
 import { api } from '../lib/api';
+
+/** GET /approvals item, as the API sends it. */
+interface ApprovalApiItem {
+  id: string;
+  task_id: string;
+  state: string;
+  task: {
+    title: string;
+    status: TaskStatus;
+    description?: string | null;
+    owner_employee_id?: string | null;
+    owner_name?: string | null;
+    deadline?: string | null;
+    source_quote?: string | null;
+    source_ref?: string | null;
+    confidence?: number | null;
+  };
+}
+
+const toApprovalItem = (a: ApprovalApiItem): ApprovalItem => ({
+  id: a.id,
+  task_id: a.task_id,
+  state: a.state,
+  title: a.task.title,
+  status: a.task.status,
+  description: a.task.description ?? null,
+  owner_employee_id: a.task.owner_employee_id ?? null,
+  owner_name: a.task.owner_name ?? null,
+  deadline: a.task.deadline ?? null,
+  source_quote: a.task.source_quote ?? null,
+  source_ref: a.task.source_ref ?? null,
+  confidence_score: a.task.confidence ?? null,
+});
 
 interface TasksState {
   approvals: ApprovalItem[];
@@ -12,10 +45,10 @@ interface TasksState {
   fetchApprovals: () => Promise<void>;
   approveTask: (id: string) => Promise<void>;
   rejectTask: (id: string, reason?: string) => Promise<void>;
-  editApproval: (id: string, payload: Partial<Task>) => Promise<void>;
+  editApproval: (id: string, payload: ApprovalEdit) => Promise<void>;
   bulkApprove: (ids: string[]) => Promise<void>;
   fetchTasks: () => Promise<void>;
-  createTask: (payload: { title: string; owner_id?: string; deadline?: string; description?: string }) => Promise<void>;
+  createTask: (payload: { title: string; owner_employee_id?: string; deadline?: string; description?: string }) => Promise<void>;
   updateTaskStatus: (id: string, status: TaskStatus, note?: string) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   setStatusFilter: (filter: string) => void;
@@ -40,7 +73,11 @@ export const useTasksStore = create<TasksState>((set, get) => ({
     try {
       const res = await api.get('/approvals');
       // The list endpoints answer with an {items, total} envelope, not a bare array.
-      set({ approvals: res.data.items ?? [], isLoading: false });
+      // Each item nests its task; the cards read flat fields, so flatten here, once.
+      // Passing the raw items through rendered every card as an untitled,
+      // unassigned task with no quote.
+      const items: ApprovalApiItem[] = res.data.items ?? [];
+      set({ approvals: items.map(toApprovalItem), isLoading: false });
     } catch {
       set({ isLoading: false });
     }
@@ -78,7 +115,7 @@ export const useTasksStore = create<TasksState>((set, get) => ({
       const { statusFilter, ownerFilter } = get();
       const params: Record<string, string> = {};
       if (statusFilter !== 'all') params.status = statusFilter;
-      if (ownerFilter !== 'all') params.owner_id = ownerFilter;
+      if (ownerFilter !== 'all') params.owner_employee_id = ownerFilter;
       const res = await api.get('/tasks', { params });
       set({ tasks: res.data.items ?? [], isLoading: false });
     } catch {
