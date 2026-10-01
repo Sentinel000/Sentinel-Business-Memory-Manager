@@ -1,12 +1,19 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { Mic, Square, Upload, FileText, Loader2 } from 'lucide-react';
+import { Mic, Square, Upload, FileText, Loader2, MessageCircle } from 'lucide-react';
 import { useMeetingsStore } from '@/stores/useMeetingsStore';
+import { apiErrorMessage } from '@/lib/api';
+
+/** How much of a group chat to read. A group export carries its whole history. */
+const WHATSAPP_WINDOWS = [3, 7, 14, 30];
 
 export const AudioRecorderStudio: React.FC = () => {
-  const { uploadAudioMeeting, createTextMeeting, isProcessing, processingMessage } = useMeetingsStore();
-  const [activeTab, setActiveTab] = useState<'record' | 'upload' | 'text'>('record');
+  const { uploadAudioMeeting, createTextMeeting, importWhatsAppChat, isProcessing, processingMessage } =
+    useMeetingsStore();
+  const [activeTab, setActiveTab] = useState<'record' | 'upload' | 'text' | 'whatsapp'>('record');
+  const [whatsAppDays, setWhatsAppDays] = useState(7);
+  const [whatsAppError, setWhatsAppError] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordSeconds, setRecordSeconds] = useState(0);
   const [title, setTitle] = useState('');
@@ -58,6 +65,22 @@ export const AudioRecorderStudio: React.FC = () => {
     }
   };
 
+  const handleWhatsAppUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Cleared so picking the same file again (after fixing a mistake) still fires.
+    e.target.value = '';
+    if (!file) return;
+    setWhatsAppError(null);
+    try {
+      await importWhatsAppChat(file, whatsAppDays, title || undefined);
+      setTitle('');
+    } catch (err) {
+      // The server explains what went wrong, e.g. "this does not look like a
+      // WhatsApp export" - show it rather than failing silently.
+      setWhatsAppError(apiErrorMessage(err, 'That chat could not be imported.'));
+    }
+  };
+
   const handleTextSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pastedText.trim()) return;
@@ -99,6 +122,14 @@ export const AudioRecorderStudio: React.FC = () => {
             }`}
           >
             Paste Text
+          </button>
+          <button
+            onClick={() => setActiveTab('whatsapp')}
+            className={`px-3 py-1 rounded-full font-medium transition ${
+              activeTab === 'whatsapp' ? 'bg-inverse text-white shadow-subtle' : 'text-warm-gray hover:text-ink-black'
+            }`}
+          >
+            WhatsApp
           </button>
         </div>
       </div>
@@ -169,6 +200,46 @@ export const AudioRecorderStudio: React.FC = () => {
           </form>
         )}
       </div>
+
+      {activeTab === 'whatsapp' && (
+        <div className="space-y-3 -mt-2">
+          <label className="p-8 bg-stone-canvas border border-dashed border-stone-border rounded-xl flex flex-col items-center justify-center space-y-2 cursor-pointer hover:border-cyan-signal transition text-center">
+            <MessageCircle className="w-8 h-8 text-cyan-signal" />
+            <span className="text-xs font-medium text-ink-black">Upload a WhatsApp chat export</span>
+            <span className="text-[11px] text-warm-gray max-w-sm">
+              In WhatsApp, open the group and tap More, then Export chat, then Without media. Upload the
+              .txt file, or the .zip an iPhone creates.
+            </span>
+            <input
+              type="file"
+              accept=".txt,.zip,text/plain,application/zip"
+              onChange={handleWhatsAppUpload}
+              disabled={isProcessing}
+              className="hidden"
+            />
+          </label>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-warm-gray">
+            <span>Read the last</span>
+            <select
+              value={whatsAppDays}
+              onChange={(e) => setWhatsAppDays(Number(e.target.value))}
+              className="border border-stone-border rounded-md px-2 py-1 bg-white text-ink-black focus:outline-none focus:border-cyan-signal"
+            >
+              {WHATSAPP_WINDOWS.map((d) => (
+                <option key={d} value={d}>
+                  {d} days
+                </option>
+              ))}
+            </select>
+            <span>of the conversation. No WhatsApp login, nothing connected.</span>
+          </div>
+          {whatsAppError && (
+            <p className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
+              {whatsAppError}
+            </p>
+          )}
+        </div>
+      )}
 
       {isProcessing && (
         <div className="p-3 bg-sky-wash border border-cyan-edge/30 rounded-lg flex items-center gap-3 text-xs text-cyan-edge">

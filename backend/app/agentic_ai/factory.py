@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.agentic_ai.checkpointer import get_checkpointer
 from app.agentic_ai.config import get_llm
+from app.agentic_ai.prompts.extractor import SourceKind
 from app.agentic_ai.prompts import (
     render_employee_chat_prompt,
     render_extractor_prompt,
@@ -77,6 +78,8 @@ def _prompt_for(
     company: Company,
     actor: User | None,
     entry: Literal["chat", "transcript"],
+    occurred_on: date | None = None,
+    source_kind: SourceKind = "meeting",
 ) -> str:
     """Render the modular on-demand system prompt."""
     if entry == "chat":
@@ -87,7 +90,9 @@ def _prompt_for(
         return render_founder_chat_prompt(company, actor)  # type: ignore
 
     elif entry == "transcript":
-        return render_extractor_prompt(company)
+        return render_extractor_prompt(
+            company, occurred_on=occurred_on, source_kind=source_kind
+        )
 
     raise ValueError(f"Unknown entry point: {entry}")
 
@@ -101,10 +106,11 @@ def build_sentinel(
     source_ref: str | None = None,
     meeting_title: str | None = None,
     occurred_on: date | None = None,
+    source_kind: SourceKind = "meeting",
 ):
     """Assemble Sentinel agent for one invocation with strict role-scoped tools."""
     tools = _tools_for(db, company, actor, entry, source_ref, meeting_title, occurred_on)
-    prompt = _prompt_for(company, actor, entry)
+    prompt = _prompt_for(company, actor, entry, occurred_on, source_kind)
     llm = get_llm()
     checkpointer = get_checkpointer()
 

@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agentic_ai.agents.extractor import run_transcript_extraction
+from app.agentic_ai.prompts.extractor import SourceKind
 from app.exceptions import ConflictError, NotFoundError
 from app.models.company import Company
 from app.models.meeting import Meeting, MeetingStatus
@@ -212,26 +213,34 @@ class MeetingService(TenantService):
         title: str,
         actor: User | None = None,
         recorded_at: datetime | None = None,
+        source_ref: str | None = None,
+        source_kind: SourceKind = "meeting",
+        audio_filename: str | None = None,
     ) -> tuple[Meeting, list[dict[str, Any]]]:
-        """Process direct transcript text and extract structured tasks."""
+        """Process direct transcript text and extract structured tasks.
+
+        Also the path for an imported WhatsApp chat: same extraction, a different
+        source label, and a prompt that reads each line's own date.
+        """
         meeting = self.meetings.create_meeting(
             title=title,
             recorded_at=recorded_at,
             raw_transcript=transcript,
-            audio_format="text",
+            audio_format="whatsapp" if source_kind == "whatsapp" else "text",
+            audio_filename=audio_filename,
             status=MeetingStatus.EXTRACTING,
         )
 
         try:
             # Sentinel Extractor Agent
-            source_ref = f"Meeting: {meeting.title}"
             ext_res = run_transcript_extraction(
                 db=self.db,
                 company=self.company,
                 transcript_text=transcript,
-                source_ref=source_ref,
+                source_ref=source_ref or f"Meeting: {meeting.title}",
                 meeting_title=meeting.title,
                 occurred_on=meeting.recorded_at.date() if meeting.recorded_at else None,
+                source_kind=source_kind,
             )
             extracted_tasks = ext_res.get("tasks_extracted", [])
 
