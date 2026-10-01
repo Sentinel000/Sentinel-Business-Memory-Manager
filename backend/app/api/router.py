@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from app.api.v1 import (
+    actions,
     admin,
     approvals,
     auth,
@@ -30,3 +31,5 @@ api_router.include_router(knowledge.router)
 api_router.include_router(reports.router)
 api_router.include_router(meetings.router, prefix="/meetings")
 api_router.include_router(admin.router)
+# Public: authorised by a signed link, not a session. See actions.py.
+api_router.include_router(actions.router)

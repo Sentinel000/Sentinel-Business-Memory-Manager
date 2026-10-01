@@ -7,6 +7,7 @@ import { ApprovalCard } from '@/components/approvals';
 import { ApprovalItem } from '@/types';
 import { CheckSquare } from 'lucide-react';
 import { BrandMark } from '@/components/ui';
+import { useLiveRefresh } from '@/lib/useLiveRefresh';
 
 export default function ApprovalsPage() {
   const { approvals, fetchApprovals, approveTask, rejectTask, editApproval, bulkApprove } = useTasksStore();
@@ -16,6 +17,10 @@ export default function ApprovalsPage() {
     fetchApprovals();
     fetchEmployees();
   }, [fetchApprovals, fetchEmployees]);
+
+  // An auto-approved extraction, or a colleague deciding in another tab, shows up
+  // here without a reload.
+  useLiveRefresh(fetchApprovals);
 
   const handleBulk = () => {
     const ids = approvals.map((a: ApprovalItem) => a.id);

@@ -21,6 +21,10 @@ from app.repositories.task import TaskRepository
 from app.schemas.task import StatusUpdateCreate, TaskCreate, TaskUpdate
 from app.services.base import TenantService
 
+#: Live work with an owner who is expected to act. Assigning an owner to a task in
+#: one of these hands it to them, which is what starts their silence clock.
+DELEGATED_STATUSES = (TaskStatus.APPROVED, TaskStatus.IN_PROGRESS, TaskStatus.BLOCKED)
+
 
 class TaskService(TenantService):
     def __init__(self, db: Session, company_id: uuid.UUID) -> None:
@@ -82,6 +86,8 @@ class TaskService(TenantService):
             idempotency_key=key,
             status=TaskStatus.APPROVED,
             created_by_agent=None,
+            # Typed by the founder and approved at creation, so the owner is told now.
+            delegated_at=datetime.now(UTC) if payload.owner_employee_id else None,
         )
 
         self.db.add(
@@ -175,8 +181,19 @@ class TaskService(TenantService):
             for field in self._CHASE_RESETTING_FIELDS
         )
 
+        # Captured before the writes, like `reactivated`. A new owner on live work is
+        # a fresh delegation: they have just been handed it, so their clock starts now.
+        reassigned = (
+            "owner_employee_id" in values
+            and values["owner_employee_id"] is not None
+            and values["owner_employee_id"] != task.owner_employee_id
+        )
+
         for key, value in values.items():
             setattr(task, key, value)
+
+        if reassigned and task.status in DELEGATED_STATUSES:
+            task.delegated_at = datetime.now(UTC)
 
         if reactivated:
             # The founder unblocked, reassigned, or moved the date — the situation

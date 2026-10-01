@@ -13,6 +13,7 @@ from sqlalchemy import select
 from app.database import SessionLocal
 from app.models.company import Company
 from app.services.chase_service import run_chase_cycle
+from app.services.notification_service import notify_reminded
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,9 @@ def daily_wake_up_job() -> None:
                     continue
                 result = run_chase_cycle(db, company)
                 db.commit()
+                # After the commit: the reminders are recorded, so emailing them
+                # can never announce one that did not happen.
+                notify_reminded(db, company.id, result.reminded_task_ids)
                 if result.reminded or result.escalated:
                     logger.info(
                         "Chased %s: %d reminded, %d handed back",

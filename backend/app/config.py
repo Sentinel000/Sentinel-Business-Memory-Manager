@@ -45,6 +45,24 @@ class Settings(BaseSettings):
     hydra_db_api_key: str = ""
     hydra_timeout_seconds: float = 30.0
 
+    # Email (SMTP). An empty host disables delivery without failing anything:
+    # reminders still land on the employee's task view, they are just not emailed.
+    # Any SMTP provider works - Alibaba Cloud DirectMail, Resend, Gmail with an app
+    # password. smtp_use_ssl means implicit TLS (usually port 465); otherwise STARTTLS.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_use_ssl: bool = False
+    smtp_starttls: bool = True
+    email_from: str = ""
+    smtp_timeout_seconds: float = 15.0
+
+    # Where the web app is served, for links inside emails.
+    app_base_url: str = "http://localhost:3000"
+    #: How long an emailed one-tap status link stays valid.
+    action_link_ttl_hours: int = 168
+
     @property
     def sqlalchemy_url(self) -> str:
         """The connection string with a psycopg 3 driver prefix.
@@ -77,6 +95,19 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.environment.lower() == "production"
+
+    @property
+    def email_enabled(self) -> bool:
+        return bool(self.smtp_host and self.email_from)
+
+    @property
+    def uses_weak_jwt_secret(self) -> bool:
+        """The shipped placeholder, or anything too short to be a real key.
+
+        This key signs session tokens *and* emailed action links, and company_id
+        rides inside those tokens - so a guessable key is a cross-tenant problem.
+        """
+        return self.jwt_secret_key.startswith("change-me") or len(self.jwt_secret_key) < 32
 
 
 @lru_cache

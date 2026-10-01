@@ -61,3 +61,5 @@ class ReportedVia(str, enum.Enum):
     SLACK = "slack"
     DASHBOARD = "dashboard"
     AGENT = "agent"
+    #: A one-tap status link from a delegation or reminder email.
+    EMAIL = "email"

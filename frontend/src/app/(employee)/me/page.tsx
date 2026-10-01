@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { Task } from '@/types';
 import { CheckCircle2, PlayCircle, AlertCircle, Clock } from 'lucide-react';
 import { ReminderBanner } from '@/components/employee';
+import { useLiveRefresh } from '@/lib/useLiveRefresh';
 
 export default function EmployeePortalPage() {
   const { myTasks, fetchMyTasks, updateMyTaskStatus } = useTasksStore();
@@ -14,6 +15,9 @@ export default function EmployeePortalPage() {
   useEffect(() => {
     fetchMyTasks();
   }, [fetchMyTasks]);
+
+  // A founder reassigning or approving work lands here without a reload.
+  useLiveRefresh(fetchMyTasks);
 
   return (
     <>

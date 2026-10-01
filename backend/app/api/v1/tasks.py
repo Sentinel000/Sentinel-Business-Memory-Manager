@@ -13,6 +13,7 @@ from fastapi import APIRouter, Header, Query, Response, status
 from app.dependencies import DbSession, FounderUser, TaskSvc
 from app.models.enums import TaskStatus
 from app.models.task import Task
+from app.services.notification_service import notify_delegated
 from app.schemas.task import (
     StatusUpdateCreate,
     TaskCreate,
@@ -54,6 +55,8 @@ def create_task(
 
     if not created:
         response.status_code = status.HTTP_200_OK
+    elif task.owner_employee_id is not None:
+        notify_delegated(db, task.company_id, [task.id])
 
     detail = TaskDetail.model_validate(task)
     detail.owner_name = service.owner_names([task]).get(task.owner_employee_id)
@@ -105,9 +108,14 @@ def update_task(
     task_id: uuid.UUID, payload: TaskUpdate, service: TaskSvc, _: FounderUser, db: DbSession
 ) -> TaskDetail:
     """Edit a task. Only the fields sent are changed."""
+    previous_owner = service.get_or_404(task_id).owner_employee_id
     task = service.update(task_id, payload)
     db.commit()
     db.refresh(task)
+
+    # A reassignment is a new delegation: the new owner has to hear about it.
+    if task.owner_employee_id is not None and task.owner_employee_id != previous_owner:
+        notify_delegated(db, task.company_id, [task.id])
 
     detail = TaskDetail.model_validate(task)
     detail.owner_name = service.owner_names([task]).get(task.owner_employee_id)

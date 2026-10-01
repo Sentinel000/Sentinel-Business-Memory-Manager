@@ -1,4 +1,27 @@
 export type Role = 'founder' | 'employee';
+
+/** The three answers an owner can give from an emailed link. */
+export type ActionStatus = 'done' | 'in_progress' | 'blocked';
+
+/** What an emailed one-tap link points at. Only ever the one task it was issued for. */
+export interface ActionPreview {
+  task_id: string;
+  title: string;
+  status: TaskStatus;
+  deadline: string | null;
+  source_quote: string | null;
+  source_ref: string | null;
+  owner_name: string;
+  company_name: string;
+  closed: boolean;
+}
+
+export interface ActionResult {
+  task_id: string;
+  title: string;
+  status: TaskStatus;
+  changed: boolean;
+}
 export type TaskStatus =
   | 'pending_approval'
   | 'approved'
@@ -47,7 +70,8 @@ export interface Task {
   title: string;
   description?: string | null;
   status: TaskStatus;
-  owner_id?: string | null;
+  /** The API's name. Sending `owner_id` was silently ignored by every endpoint. */
+  owner_employee_id?: string | null;
   owner_name?: string | null;
   deadline?: string | null;
   days_late: number;
@@ -58,9 +82,30 @@ export interface Task {
   updated_at: string;
 }
 
-export interface ApprovalItem extends Task {
-  confidence_score?: number;
-  decider_name?: string | null;
+/**
+ * One card in the approval queue, flattened from the API's {id, state, task: {...}}.
+ * `id` is the *approval* id - approve, reject and edit all act on it.
+ */
+export interface ApprovalItem {
+  id: string;
+  task_id: string;
+  state: string;
+  title: string;
+  status: TaskStatus;
+  description?: string | null;
+  owner_employee_id?: string | null;
+  owner_name?: string | null;
+  deadline?: string | null;
+  source_quote?: string | null;
+  source_ref?: string | null;
+  confidence_score?: number | null;
+}
+
+/** Fields a founder can change on a queued task before deciding. */
+export interface ApprovalEdit {
+  title?: string;
+  owner_employee_id?: string;
+  deadline?: string;
 }
 
 export interface TranscriptSegment {

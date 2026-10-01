@@ -16,7 +16,7 @@ applies: ``WHERE status='overdue'`` must never be a fuzzy retrieval.
 
 import logging
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, or_, select
@@ -50,6 +50,10 @@ class ChaseResult:
     company: str
     reminded: int
     escalated: int
+    #: Which tasks got a reminder this cycle, so the caller can email them *after*
+    #: committing. Emailing from inside the cycle could announce a reminder that a
+    #: later rollback never recorded.
+    reminded_task_ids: list[uuid.UUID] = field(default_factory=list)
 
 
 def _last_touch():
@@ -123,6 +127,7 @@ def run_chase_cycle(
     now = now or datetime.now(UTC)
     reminded = 0
     escalated = 0
+    reminded_ids: list[uuid.UUID] = []
 
     for task in due_for_chase(db, company, now):
         task.chase_count += 1
@@ -143,6 +148,7 @@ def run_chase_cycle(
             )
         )
         reminded += 1
+        reminded_ids.append(task.id)
 
         # Budget spent. Stop chasing and put it in front of the founder, who is the
         # only escalation path now that managers cannot be DM'd.
@@ -154,7 +160,12 @@ def run_chase_cycle(
     logger.info(
         "Chase cycle for %s: %d reminded, %d escalated", company.name, reminded, escalated
     )
-    return ChaseResult(company=company.name, reminded=reminded, escalated=escalated)
+    return ChaseResult(
+        company=company.name,
+        reminded=reminded,
+        escalated=escalated,
+        reminded_task_ids=reminded_ids,
+    )
 
 
 def _reminder_note(task: Task, company: Company, now: datetime) -> str:
